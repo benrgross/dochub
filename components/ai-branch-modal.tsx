@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
@@ -55,17 +55,25 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
   const [pending, startTransition] = useTransition()
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  // Stabilize the transport so useChat doesn't bind to a stale closure of
+  // `instructions`. Doc fields are static per session; the user's text
+  // (the instructions) ships as the message body via sendMessage({ text }).
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/ai-edit',
+        body: () => ({
+          document: { id: document.id, title: document.title, content: document.content },
+        }),
+      }),
+    [document.id, document.title, document.content],
+  )
+
   // Deterministic ID per document — keeps the build prerender pure and lets
   // a single AI session bind to a single doc (no Math.random() at SSR).
   const { messages, sendMessage, status, error, setMessages } = useChat({
     id: `ai-branch-${document.id}`,
-    transport: new DefaultChatTransport({
-      api: '/api/ai-edit',
-      body: () => ({
-        document: { id: document.id, title: document.title, content: document.content },
-        instructions,
-      }),
-    }),
+    transport,
   })
 
   const proposals = collectProposals(messages)

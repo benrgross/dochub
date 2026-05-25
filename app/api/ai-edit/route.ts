@@ -29,13 +29,12 @@ import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
 export const maxDuration = 60
 
 const RequestSchema = z.object({
-  messages: z.array(z.any()),
+  messages: z.array(z.any()).min(1, 'No instructions provided'),
   document: z.object({
     id: z.string().uuid(),
     title: z.string(),
     content: z.string().max(200_000),
   }),
-  instructions: z.string().min(1).max(4000),
 })
 
 export async function POST(req: Request) {
@@ -53,7 +52,16 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages, document, instructions } = parsed
+  const { messages, document } = parsed
+
+  // The user's most recent text message is the instructions. Pulling it
+  // from the message stream avoids a duplicate field and stale-closure
+  // bugs when the body callback fires before the next render.
+  const instructions = extractLatestUserText(messages as UIMessage[])
+  if (!instructions) {
+    return Response.json({ error: 'No instructions provided' }, { status: 400 })
+  }
+
   const model = await resolveAiModel()
 
   const result = streamText({
@@ -142,6 +150,20 @@ The user's instructions are: ${instructions}`,
   })
 
   return result.toUIMessageStreamResponse()
+}
+
+function extractLatestUserText(messages: UIMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m.role !== 'user') continue
+    const text = m.parts
+      ?.filter((p) => p.type === 'text')
+      .map((p) => (p as { text: string }).text)
+      .join('\n')
+      .trim()
+    if (text) return text
+  }
+  return ''
 }
 
 function countOccurrences(haystack: string, needle: string): number {
