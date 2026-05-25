@@ -55,32 +55,41 @@
 
 ## Phase 3 — Streamed AI with tools via AI Gateway (prep-doc: AI SDK, AI Gateway, tools)
 
-- [ ] Rewrite `app/api/ai-edit/route.ts` → `streamText` with tools, `model: 'anthropic/claude-sonnet-4.6'`, fallback to `openai/gpt-5.4` via `providerOptions.gateway`
-- [ ] Force `runtime = 'nodejs'`, `maxDuration = 60` (Fluid Compute talking point)
-- [ ] Tools: `proposeReplacement`, `proposeInsertion` (Zod input schemas)
-- [ ] Rewire `components/ai-branch-modal.tsx` to `useChat` with streamed tool-call cards
-- [ ] Drop the auto-merge checkbox (anti-pattern for the agent narrative)
+- [x] Rewrite `app/api/ai-edit/route.ts` → `streamText` with tools, `model: 'anthropic/claude-sonnet-4.6'` routed through AI Gateway automatically
+- [x] `runtime = 'nodejs'`, `maxDuration = 60` (Fluid Compute talking point)
+- [x] Tools: `proposeReplacement`, `proposeInsertion` (Zod `inputSchema`)
+- [x] Rewire `components/ai-branch-modal.tsx` to `@ai-sdk/react` `useChat` with streamed tool-call cards
+- [x] Drop the auto-merge checkbox (anti-pattern for the agent narrative)
 
 ## Phase 4 — Source-doc upload + Edge Config flags (prep-doc: Edge Config)
 
-- [ ] `app/(tabs)/document/upload/page.tsx` + drag-drop markdown upload + `pinDocument` Server Action
-- [ ] First-time visit funnels to upload when no pinned doc exists
-- [ ] Edge Config store: `aiBranchEnabled: boolean`, `aiModel: 'auto' | 'anthropic/claude-sonnet-4.6' | 'openai/gpt-5.4'`
-- [ ] AI route reads Edge Config; flips without redeploy
+- [x] `app/(app)/upload/page.tsx` + drag-drop markdown upload + `pinDocument` Server Action
+- [x] First-time visit funnels to `/upload` when no pinned doc exists (root redirect)
+- [x] Edge Config store: `aiBranchEnabled: boolean`, `aiModel` string override
+- [x] AI route reads Edge Config via `lib/flags.ts`; falls back to env in local dev
 
-## Phase 5 — Routing Middleware + BotID + observability (prep-doc: Firewall, BotID, security)
+## Phase 5 — Routing Middleware + observability (prep-doc: Routing Middleware, security)
 
-- [ ] `middleware.ts` with `@vercel/botid` deep verification on `POST /api/ai-edit`
-- [ ] Sliding-window rate limit per IP via Vercel Runtime Cache API
-- [ ] Security headers (CSP, X-Content-Type-Options, Referrer-Policy)
-- [ ] `vercel.ts` (replaces `vercel.json`) with cron + cache-control headers
+- [x] `middleware.ts` security headers (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, X-Content-Type-Options) on every HTML response
+- [x] Sliding-window rate limit per IP (10/min) on `POST /api/ai-edit` via Vercel Runtime Cache API; fails open on cache errors
+- [x] `vercel.ts` (replaces `vercel.json`) with cache-control headers on static icons
+- [-] `@vercel/botid` (dropped per Track-A re-scope; keep simple rate limit instead)
 
-## Phase 6 — Deploy + observability + agent (prep-doc: Speed Insights, Web Analytics, Vercel Agent)
+## Phase 6 — Deploy + README + Vercel Agent (prep-doc: Speed Insights, Web Analytics, Vercel Agent)
 
-- [ ] `@vercel/speed-insights` wired
-- [ ] Deploy to Vercel; verify Web Analytics + Speed Insights show data
-- [ ] Enable Vercel Agent code review on the GitHub repo
-- [ ] README walk-through of every architectural decision
+- [x] `@vercel/speed-insights` + `@vercel/analytics` wired in `app/layout.tsx`
+- [x] README walk-through of every architectural decision
+- [ ] **External**: push to GitHub, import into Vercel project, set env vars, deploy
+- [ ] **External**: enable Vercel Agent code review on the GitHub repo
+- [ ] **External**: verify Speed Insights + Web Analytics show data after the demo session
+
+## Track A polish (added 2026-05-25 after re-scope discussion)
+
+- [x] Filter + search on the CR list — URL-driven (`?filter=…&q=…`), only the Suspense boundary re-streams
+- [x] Parallel routes — `@list` sidebar stays mounted across PR navigation (no remount, no scroll loss)
+- [x] `generateMetadata` on `/changes/[crId]` reuses cached `getChangeRequest` for SEO/OG cards
+- [-] BotID (de-scoped — felt too Track-B-heavy)
+- [-] `aiModel` Edge Config override (kept code path, removed demo emphasis — kill switch only in the live walkthrough)
 
 ## Stretch goals
 
@@ -101,6 +110,60 @@
 - **RLS**: Off in v1 demo. Talking point: enable per-team RLS with Clerk JWTs in v2.
 - **Realtime**: Stretch goal; only add if comfortably ahead of schedule.
 - **Auto-merge**: Removed from AI Branch flow. The agent-platform narrative is human-in-the-loop; auto-merge undermines the story.
+
+---
+
+## External setup checklist (user-driven)
+
+What's left to flip the deployed app from "code complete" to "live demo URL." None of these are code changes — they're dashboard / CLI operations.
+
+### 1. Supabase
+
+- [ ] Create a project (supabase.com or via Vercel Marketplace).
+- [ ] Open the SQL editor, paste & run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql).
+- [ ] Grab the project URL + anon key from `Project → Settings → API`.
+- [ ] (Optional) Verify with: `select * from documents;` → should return 0 rows.
+
+### 2. Vercel link + env
+
+```bash
+cd claude-coworker-git
+pnpm dlx vercel link            # connect this folder to a Vercel project
+pnpm dlx vercel env add NEXT_PUBLIC_SUPABASE_URL
+pnpm dlx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+pnpm dlx vercel env pull .env.local
+```
+
+If you provisioned Supabase via the Marketplace, the env vars are auto-set and `vercel env pull` is all you need.
+
+### 3. AI Gateway
+
+- [ ] In the Vercel dashboard: `Project → Settings → AI Gateway → Enable`.
+- [ ] The OIDC token now flows in via `vercel env pull` automatically — no `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` needed.
+
+### 4. Edge Config (optional but the kill-switch story is great)
+
+- [ ] `Project → Storage → Create → Edge Config`, link to the project.
+- [ ] Add keys:
+  ```json
+  { "aiBranchEnabled": true, "aiModel": "auto" }
+  ```
+- [ ] `vercel env pull .env.local` again to pick up `EDGE_CONFIG`.
+- [ ] Flip `aiBranchEnabled: false` mid-demo to show the kill switch.
+
+### 5. GitHub + deploy
+
+- [ ] `gh repo create dochub --public --source=. --push` (or push to your existing GitHub).
+- [ ] In Vercel: `Add New → Project → Import GitHub repo`. Set production branch = `main`.
+- [ ] Verify the deployed URL works end-to-end (upload → AI branch → merge).
+- [ ] In `Settings → Vercel Agent → Code Review`: enable on the repo.
+
+### 6. Day-of demo
+
+- [ ] Open the deployed URL beforehand to warm the function (first invocation has cold-start latency that distracts from the demo).
+- [ ] Have DevTools open on the Performance + Network tabs — the streaming + Suspense story plays best visually.
+- [ ] Pull up the Speed Insights dashboard in another tab.
+- [ ] Have an interesting source doc pre-pinned (e.g. an actual PRD or a runbook).
 
 ---
 
@@ -136,6 +199,25 @@
 ## Build log
 
 > Phase completions, blockers, deviations. Newest at top.
+
+### 2026-05-25 · Phase 5 + 6 (code) complete (commit `acfb978`)
+- `middleware.ts`: CSP + X-Frame-Options + Referrer-Policy + Permissions-Policy + X-Content-Type-Options on every HTML response. POST `/api/ai-edit` runs through a 10-req/min/IP rate limiter backed by `@vercel/functions` `getCache()` — no external Redis. Fails open if the cache layer errors so legitimate traffic never gets blocked.
+- `vercel.ts` typed config — long-immutable cache-control on static icons. Replaces `vercel.json`.
+- `README.md` walks through the full architecture, file-by-file, with trade-offs and a demo flow.
+- **Remaining external steps**: push to GitHub, link Vercel project, `vercel env pull`, enable AI Gateway, optionally enable Edge Config, deploy. See "External setup checklist" below.
+
+### 2026-05-25 · Track A polish + parallel routes (commit `4fe9cf8`)
+- Re-scoped per discussion: trimmed Track-B-flavored items (BotID, deep AI Gateway routing) and added Track-A flourishes.
+- URL-driven filter + search on the CR list (`?filter=open|closed|ai&q=…`). Filter changes re-stream only the `@list` Suspense boundary.
+- Restructured `/changes` into parallel routes: `@list` slot stays mounted across PR navigation (no remount, no scroll loss). Demo moment: open DevTools React profiler, click around — the sidebar tree is stable.
+- `generateMetadata` on `/changes/[crId]` — reuses the cached `getChangeRequest` so OG previews don't add a DB hit.
+
+### 2026-05-25 · Phase 3 complete (commit `17cb01d`)
+- `/api/ai-edit` now uses `streamText` with two tools (`proposeReplacement`, `proposeInsertion`). Each tool's `execute` validates that the target text actually exists in the doc and tells the model to retry if not — that's the "self-correcting" agent loop.
+- Plain `'anthropic/claude-sonnet-4.6'` model string — AI Gateway is the default routing layer; no `gateway()` wrapper needed.
+- Edge Config kill switch (`aiBranchEnabled`) read at the top of the route. Local-dev fallback via env var so the dev loop has no friction.
+- Modal rewritten with `@ai-sdk/react` `useChat` + `DefaultChatTransport`. Doc + instructions ride along on every send via the transport's dynamic `body`. Tool calls render as cards live as they stream. Proposals get applied to a virtual buffer client-side; the existing `DiffViewer` shows the unified diff. "Create branch" calls the `createChangeRequest` Server Action with the full `aiMetadata` audit trail.
+- `convertToModelMessages` is async in v6 — had to `await` it.
 
 ### 2026-05-25 · Phase 1 + 2 complete (commit `0651c78`)
 - Migrated to `next.config.ts` with `cacheComponents: true`; dropped `ignoreBuildErrors`.
