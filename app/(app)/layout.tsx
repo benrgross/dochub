@@ -50,7 +50,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
       </header>
 
-      <Nav />
+      <Suspense fallback={<NavSkeleton />}>
+        <Nav />
+      </Suspense>
 
       <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
 
@@ -58,6 +60,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <span>Built for the Vercel SA take-home demo</span>
         <span>Source control for documents</span>
       </footer>
+    </div>
+  )
+}
+
+function NavSkeleton() {
+  return (
+    <div className="flex items-center gap-1 px-4 py-2 border-b border-border bg-card/50">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-7 w-32 rounded-md bg-secondary/40 animate-pulse" />
+      ))}
     </div>
   )
 }
