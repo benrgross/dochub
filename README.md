@@ -2,7 +2,7 @@
 
 A GitHub-style review-and-merge workflow for long-lived shared documents (PRDs, runbooks, policies, security questionnaires), with an AI coworker that proposes structured edits via tool calls.
 
-Built as a Vercel Solutions Architect take-home demo on **Next.js 16 + AI SDK 6 + Supabase**, deployed on **Vercel Fluid Compute**.
+ **Next.js 16 + AI SDK 6 + Supabase**, deployed on **Vercel Fluid Compute**.
 
 ---
 
