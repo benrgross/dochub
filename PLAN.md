@@ -38,19 +38,20 @@
 
 ## Phase 1 — Rendering: PPR + Cache Components (prep-doc: PPR, `use cache`, RSC)
 
-- [ ] `next.config.mjs` → `next.config.ts` with `cacheComponents: true`; drop `ignoreBuildErrors`
-- [ ] `app/_data/documents.ts`, `app/_data/change-requests.ts`, `app/_data/commits.ts` — cached server fetchers with `cacheLife` + `cacheTag`
-- [ ] Split `app/page.tsx` into Server Component shell + nested tab routes (`document`, `changes`, `history`)
-- [ ] Suspense boundaries around dynamic content (open PR list streams)
+- [x] `next.config.mjs` → `next.config.ts` with `cacheComponents: true`; drop `ignoreBuildErrors`
+- [x] `app/_data/documents.ts`, `app/_data/change-requests.ts`, `app/_data/commits.ts` — cached server fetchers with `cacheLife` + `cacheTag`
+- [x] Split `app/page.tsx` into Server Component shell + nested tab routes (`document`, `changes`, `history`)
+- [x] Suspense boundaries around dynamic content (open PR list streams, history streams)
 
 ## Phase 2 — Mutations: Server Actions (prep-doc: Server Actions, Zod)
 
-- [ ] `app/_actions/document.ts` (pin, upload)
-- [ ] `app/_actions/change-requests.ts` (create, approve, merge, close)
-- [ ] `app/_actions/comments.ts` (add)
-- [ ] Zod schemas + `updateTag` for same-request freshness
-- [ ] Delete `lib/db.ts` and `lib/supabase/client.ts`
-- [ ] Strip `lib/store.ts` to UI-only state; wire `useActionState` + `useOptimistic`
+- [x] `app/_actions/document.ts` (pin)
+- [x] `app/_actions/change-requests.ts` (create, approve, merge, close)
+- [x] `app/_actions/comments.ts` (add)
+- [x] `app/_actions/user.ts` (cookie-backed persona)
+- [x] Zod schemas + `updateTag` for same-request freshness
+- [x] Delete `lib/db.ts` and `lib/supabase/client.ts`
+- [x] Replace `lib/store.ts` with UI-only state via `useActionState` + `useOptimistic` (Zustand removed entirely)
 
 ## Phase 3 — Streamed AI with tools via AI Gateway (prep-doc: AI SDK, AI Gateway, tools)
 
@@ -136,7 +137,18 @@
 
 > Phase completions, blockers, deviations. Newest at top.
 
+### 2026-05-25 · Phase 1 + 2 complete (commit `0651c78`)
+- Migrated to `next.config.ts` with `cacheComponents: true`; dropped `ignoreBuildErrors`.
+- Routes split into `(app)` route group with a shared chrome layout; redirect from `/` to `/document` or `/upload`.
+- Cached server fetchers in `app/_data/` for the document, individual CRs, and commits — open-CR list intentionally NOT cached (real-time PR status).
+- **Hit a Cache Components constraint**: the Supabase server client uses `cookies()`, which is forbidden inside `use cache`. Introduced `lib/supabase/service.ts` (no cookie binding) for cached reads. Mutations still use the cookie-bound `createServerClient` so RLS-backed auth lands cleanly in v2.
+- Server Actions for every mutation, all Zod-validated, all call `updateTag` for same-request freshness + `revalidatePath` for sidebar refresh.
+- Components refactored to receive data via props; the v0 Zustand store is gone — `useActionState` + `useOptimistic` cover the optimistic UX (comments, merge/approve buttons via `useTransition`).
+- Persona picker (header dropdown) stub for Clerk auth in v2.
+- Drag-and-drop `.md` / `.txt` upload form that pins via the `pinDocument` Server Action.
+- pnpm 10.15 installed (Node 20 compat); deps swapped: removed `zustand`, added `@vercel/speed-insights`, `@vercel/edge-config`, `botid`, `@vercel/config`.
+
 ### 2026-05-25 · Phase 0 (code-side complete)
 - Wrote `supabase/migrations/0001_init.sql` — tables: `documents` (with `pinned` boolean + partial unique index for "one pinned doc"), `change_requests` (with `ai_metadata jsonb` for tool-call audit trail), `comments`, `commits` (with `content_snapshot` for true append-only history).
 - Initialized git repo on `main`, first commit `f31a363`.
-- **Blocker**: external Supabase + Vercel setup is user-driven; see "Phase 0 external setup" section below.
+- **Blocker**: external Supabase + Vercel setup is user-driven; build/dev requires real env vars.

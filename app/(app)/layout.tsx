@@ -3,7 +3,7 @@ import { GitBranch } from 'lucide-react'
 import { Nav } from '@/components/chrome/nav'
 import { PersonaPicker } from '@/components/chrome/persona-picker'
 import { NewChangeRequestModal } from '@/components/new-change-request-modal'
-import { AIBranchButton } from '@/components/ai-branch-modal'
+import { AIBranchTrigger } from '@/components/ai-branch-trigger'
 import { getCurrentUser } from '@/lib/current-user'
 import { getPinnedDocument } from '@/app/_data/documents'
 
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <PersonaPicker current={user} />
           {doc && (
             <>
-              <AIBranchButton />
+              <AIBranchTrigger document={doc} />
               <NewChangeRequestModal document={doc} />
             </>
           )}

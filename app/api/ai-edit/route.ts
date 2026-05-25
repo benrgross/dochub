@@ -1,49 +1,153 @@
-import { generateText } from 'ai'
+import { z } from 'zod'
+import {
+  streamText,
+  convertToModelMessages,
+  stepCountIs,
+  type UIMessage,
+} from 'ai'
+import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
+
+/**
+ * Streamed AI proposal endpoint.
+ *
+ * Why Node + Fluid Compute (not Edge):
+ * - LLM streaming is mostly I/O wait. Fluid Compute reuses one function
+ *   instance across concurrent streams and only bills Active CPU, so token
+ *   wait time is free.
+ * - Cache Components and several `use cache` features need Node anyway.
+ *
+ * Why a plain "provider/model" string and no `gateway()` wrapper:
+ * - AI SDK 6 routes plain `"provider/model"` strings through AI Gateway
+ *   automatically. We get observability, BYOK/OIDC, and a clean failover
+ *   knob if we ever need it — without the extra wiring in the demo path.
+ */
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
+const RequestSchema = z.object({
+  messages: z.array(z.any()),
+  document: z.object({
+    id: z.string().uuid(),
+    title: z.string(),
+    content: z.string().max(200_000),
+  }),
+  instructions: z.string().min(1).max(4000),
+})
 
 export async function POST(req: Request) {
+  if (!(await isAiBranchEnabled())) {
+    return Response.json({ error: 'AI Branch is disabled' }, { status: 503 })
+  }
+
+  let parsed: z.infer<typeof RequestSchema>
   try {
-    const { document, instructions } = await req.json()
-    
-    console.log('[v0] AI edit request received', { 
-      documentLength: document?.length, 
-      instructions: instructions?.substring(0, 100) 
-    })
-
-    if (!document || !instructions) {
-      return Response.json(
-        { error: 'Missing document or instructions' },
-        { status: 400 }
-      )
-    }
-
-    const result = await generateText({
-      model: 'openai/gpt-4o-mini',
-      system: `You are a document editor AI. You receive a document and instructions for how to edit it.
-Your job is to return the COMPLETE edited document - not just the changes, but the full document with all edits applied.
-
-Rules:
-- Return ONLY the edited document content, no explanations or markdown formatting
-- Preserve the overall structure unless asked to change it
-- Make the requested changes while keeping the rest intact
-- If the instruction is unclear, make your best judgment
-- Do not add any prefixes like "Here is the edited document:" - just return the document itself`,
-      prompt: `## Original Document:
-${document}
-
-## Instructions:
-${instructions}
-
-Return the complete edited document:`,
-    })
-
-    console.log('[v0] AI edit completed', { resultLength: result.text?.length })
-
-    return Response.json({ editedDocument: result.text })
+    parsed = RequestSchema.parse(await req.json())
   } catch (error) {
-    console.error('[v0] AI edit error:', error)
     return Response.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate edits' },
-      { status: 500 }
+      { error: error instanceof z.ZodError ? error.issues[0]?.message : 'Bad request' },
+      { status: 400 },
     )
   }
+
+  const { messages, document, instructions } = parsed
+  const model = await resolveAiModel()
+
+  const result = streamText({
+    model,
+    stopWhen: stepCountIs(8),
+    system: `You are a meticulous document editor. The user has a source-of-truth markdown document titled "${document.title}" and a set of edit instructions. Your job is to propose targeted edits to that document by emitting tool calls. Never rewrite the document wholesale.
+
+Rules:
+- Use the proposeReplacement tool when you want to change an existing substring. The "find" value must match the source document exactly.
+- Use the proposeInsertion tool when you want to add new content after a heading.
+- Each tool call must include a one-sentence rationale that explains why the edit improves the document.
+- Prefer many small, surgical edits over one giant rewrite.
+- After emitting tool calls, write a short plain-text summary of the proposed changes.
+
+The current document is between the <doc> tags:
+<doc>
+${document.content}
+</doc>
+
+The user's instructions are: ${instructions}`,
+    messages: await convertToModelMessages(messages as UIMessage[]),
+    tools: {
+      proposeReplacement: {
+        description:
+          'Replace an exact substring of the document with new content. "find" must appear in the document exactly once.',
+        inputSchema: z.object({
+          find: z.string().min(1).describe('Exact substring to replace.'),
+          replace: z.string().describe('The replacement content.'),
+          rationale: z.string().describe('Why this change improves the document.'),
+        }),
+        execute: async ({
+          find,
+          replace,
+          rationale,
+        }: {
+          find: string
+          replace: string
+          rationale: string
+        }) => {
+          const occurrences = countOccurrences(document.content, find)
+          if (occurrences === 0) {
+            return {
+              ok: false as const,
+              reason: '"find" did not match the document. Re-read the doc and try again.',
+            }
+          }
+          if (occurrences > 1) {
+            return {
+              ok: false as const,
+              reason: `"find" matched ${occurrences} times — narrow it down with more surrounding context.`,
+            }
+          }
+          return { ok: true as const, find, replace, rationale }
+        },
+      },
+      proposeInsertion: {
+        description:
+          'Insert new content immediately after a specific heading. The heading text must appear in the document.',
+        inputSchema: z.object({
+          afterHeading: z
+            .string()
+            .min(1)
+            .describe('The heading line to insert content after (include the leading # marks).'),
+          content: z.string().describe('The content to insert below the heading.'),
+          rationale: z.string().describe('Why this addition improves the document.'),
+        }),
+        execute: async ({
+          afterHeading,
+          content,
+          rationale,
+        }: {
+          afterHeading: string
+          content: string
+          rationale: string
+        }) => {
+          if (!document.content.includes(afterHeading)) {
+            return {
+              ok: false as const,
+              reason: `Heading "${afterHeading}" not found in the document.`,
+            }
+          }
+          return { ok: true as const, afterHeading, content, rationale }
+        },
+      },
+    },
+  })
+
+  return result.toUIMessageStreamResponse()
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0
+  let count = 0
+  let index = haystack.indexOf(needle)
+  while (index !== -1) {
+    count += 1
+    index = haystack.indexOf(needle, index + needle.length)
+  }
+  return count
 }
