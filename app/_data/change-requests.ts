@@ -9,22 +9,45 @@ import type {
   Comment,
 } from '@/lib/types'
 
+export type ChangeRequestFilter = 'all' | 'open' | 'closed' | 'ai'
+
 /**
  * NOTE: We intentionally do NOT wrap the open change-request *list* in `use cache`
  * because the demo wants near-real-time PR status. It streams in via Suspense
  * for fast TTFB while the static shell paints from the CDN.
  *
+ * The list accepts an optional filter that maps to URL search params on
+ * /changes — search params are dynamic, so the cached chrome layout stays
+ * cached while only this Suspense boundary re-renders per filter.
+ *
  * Individual change requests (and the history list) ARE cached, because they
  * change less often and we invalidate them precisely via `updateTag`.
  */
-export async function listChangeRequests(documentId: string): Promise<ChangeRequest[]> {
+export async function listChangeRequests(
+  documentId: string,
+  filter: ChangeRequestFilter = 'all',
+  query = '',
+): Promise<ChangeRequest[]> {
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  let q = supabase
     .from('change_requests')
     .select('*, comments(*)')
     .eq('document_id', documentId)
     .order('created_at', { ascending: false })
 
+  if (filter === 'open') {
+    q = q.in('status', ['open', 'approved'])
+  } else if (filter === 'closed') {
+    q = q.in('status', ['merged', 'closed'])
+  } else if (filter === 'ai') {
+    q = q.not('ai_metadata', 'is', null)
+  }
+
+  if (query.trim()) {
+    q = q.ilike('title', `%${query.trim()}%`)
+  }
+
+  const { data, error } = await q
   if (error) {
     console.error('[data] listChangeRequests', error)
     throw error
