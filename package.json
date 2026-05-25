@@ -41,8 +41,12 @@
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.0",
     "@vercel/analytics": "1.6.1",
+    "@vercel/config": "^0.5.0",
+    "@vercel/edge-config": "^1.4.3",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.185",
     "autoprefixer": "^10.4.20",
+    "botid": "^1.5.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
@@ -62,8 +66,7 @@
     "sonner": "^1.7.1",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2",
-    "zod": "^3.24.1",
-    "zustand": "^5.0.13"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",

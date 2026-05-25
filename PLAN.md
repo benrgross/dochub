@@ -31,8 +31,8 @@
 ## Phase 0 — Provisioning
 
 - [x] Initial v0 scaffold imported into `claude-coworker-git/`
-- [ ] `supabase/migrations/0001_init.sql` written
-- [ ] Git repo initialized + first commit
+- [x] `supabase/migrations/0001_init.sql` written
+- [x] Git repo initialized + first commit
 - [ ] Supabase project provisioned, migration applied (**user-driven**)
 - [ ] `vercel link` + AI Gateway enabled + `vercel env pull` (**user-driven**)
 
@@ -136,4 +136,7 @@
 
 > Phase completions, blockers, deviations. Newest at top.
 
-_(empty — populated as we execute)_
+### 2026-05-25 · Phase 0 (code-side complete)
+- Wrote `supabase/migrations/0001_init.sql` — tables: `documents` (with `pinned` boolean + partial unique index for "one pinned doc"), `change_requests` (with `ai_metadata jsonb` for tool-call audit trail), `comments`, `commits` (with `content_snapshot` for true append-only history).
+- Initialized git repo on `main`, first commit `f31a363`.
+- **Blocker**: external Supabase + Vercel setup is user-driven; see "Phase 0 external setup" section below.

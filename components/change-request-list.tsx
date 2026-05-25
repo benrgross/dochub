@@ -1,50 +1,41 @@
-'use client'
-
-import { useDocHubStore } from '@/lib/store'
-import { ChangeRequest } from '@/lib/types'
+import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
-import { GitPullRequest, GitMerge, X, MessageSquare, CheckCircle2 } from 'lucide-react'
+import { GitPullRequest, GitMerge, X, MessageSquare, CheckCircle2, Bot } from 'lucide-react'
+import type { ChangeRequest } from '@/lib/types'
 
-export function ChangeRequestList() {
-  const { changeRequests, selectChangeRequest, selectedChangeRequest } = useDocHubStore()
+interface ChangeRequestListProps {
+  changeRequests: ChangeRequest[]
+  selectedId?: string
+}
 
-  const openRequests = changeRequests.filter((cr) => cr.status === 'open' || cr.status === 'approved')
-  const closedRequests = changeRequests.filter((cr) => cr.status === 'merged' || cr.status === 'closed')
+export function ChangeRequestList({ changeRequests, selectedId }: ChangeRequestListProps) {
+  const open = changeRequests.filter((cr) => cr.status === 'open' || cr.status === 'approved')
+  const closed = changeRequests.filter((cr) => cr.status === 'merged' || cr.status === 'closed')
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border">
         <h2 className="text-sm font-medium text-foreground">Change Requests</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          {openRequests.length} open, {closedRequests.length} closed
+          {open.length} open, {closed.length} closed
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {openRequests.length > 0 && (
+        {open.length > 0 && (
           <div className="p-2">
             <div className="text-xs font-medium text-muted-foreground px-2 py-1.5">Open</div>
-            {openRequests.map((cr) => (
-              <ChangeRequestItem
-                key={cr.id}
-                cr={cr}
-                isSelected={selectedChangeRequest?.id === cr.id}
-                onClick={() => selectChangeRequest(cr)}
-              />
+            {open.map((cr) => (
+              <Item key={cr.id} cr={cr} isSelected={selectedId === cr.id} />
             ))}
           </div>
         )}
 
-        {closedRequests.length > 0 && (
+        {closed.length > 0 && (
           <div className="p-2 border-t border-border">
             <div className="text-xs font-medium text-muted-foreground px-2 py-1.5">Closed</div>
-            {closedRequests.map((cr) => (
-              <ChangeRequestItem
-                key={cr.id}
-                cr={cr}
-                isSelected={selectedChangeRequest?.id === cr.id}
-                onClick={() => selectChangeRequest(cr)}
-              />
+            {closed.map((cr) => (
+              <Item key={cr.id} cr={cr} isSelected={selectedId === cr.id} />
             ))}
           </div>
         )}
@@ -59,26 +50,19 @@ export function ChangeRequestList() {
   )
 }
 
-function ChangeRequestItem({
-  cr,
-  isSelected,
-  onClick,
-}: {
-  cr: ChangeRequest
-  isSelected: boolean
-  onClick: () => void
-}) {
+function Item({ cr, isSelected }: { cr: ChangeRequest; isSelected: boolean }) {
   const statusIcon = {
     open: <GitPullRequest className="w-4 h-4 text-[oklch(0.65_0.15_145)]" />,
     approved: <CheckCircle2 className="w-4 h-4 text-[oklch(0.65_0.15_200)]" />,
     merged: <GitMerge className="w-4 h-4 text-[oklch(0.65_0.18_280)]" />,
     closed: <X className="w-4 h-4 text-[oklch(0.55_0.22_25)]" />,
   }
+  const isAi = cr.aiMetadata != null
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-3 py-2.5 rounded-md transition-colors ${
+    <Link
+      href={`/changes/${cr.id}`}
+      className={`block w-full text-left px-3 py-2.5 rounded-md transition-colors ${
         isSelected
           ? 'bg-primary/10 border border-primary/30'
           : 'hover:bg-secondary/50 border border-transparent'
@@ -87,7 +71,10 @@ function ChangeRequestItem({
       <div className="flex items-start gap-2.5">
         <div className="mt-0.5">{statusIcon[cr.status]}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-foreground truncate">{cr.title}</div>
+          <div className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+            {isAi && <Bot className="w-3.5 h-3.5 text-purple-400 shrink-0" />}
+            <span className="truncate">{cr.title}</span>
+          </div>
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{cr.author}</span>
             <span>•</span>
@@ -104,6 +91,6 @@ function ChangeRequestItem({
           </div>
         </div>
       </div>
-    </button>
+    </Link>
   )
 }
