@@ -55,7 +55,10 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
   const [pending, startTransition] = useTransition()
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  // Deterministic ID per document — keeps the build prerender pure and lets
+  // a single AI session bind to a single doc (no Math.random() at SSR).
   const { messages, sendMessage, status, error, setMessages } = useChat({
+    id: `ai-branch-${document.id}`,
     transport: new DefaultChatTransport({
       api: '/api/ai-edit',
       body: () => ({
