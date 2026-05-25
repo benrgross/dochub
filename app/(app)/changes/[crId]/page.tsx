@@ -9,12 +9,23 @@ interface PageProps {
   params: Promise<{ crId: string }>
 }
 
+// UUID v4-ish guard: cheap regex that rejects the literal "[crId]" placeholder
+// Next.js passes during prerender, but accepts any well-formed UUID at runtime.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * Per-PR metadata for shareable links (Slack / Linear / email previews).
- * Reuses the cached `getChangeRequest` so no extra DB hit.
+ * Reuses the cached `getChangeRequest` so no extra DB hit at runtime.
+ *
+ * Note: during static prerender Next invokes this with `crId === "[crId]"`
+ * (the route placeholder). We return defaults in that case so the build
+ * doesn't try to query Postgres with a literal placeholder.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { crId } = await params
+  if (!UUID_RE.test(crId)) {
+    return { title: 'Change request · DocHub' }
+  }
   const cr = await getChangeRequest(crId)
   if (!cr) return { title: 'Change request not found' }
 
