@@ -22,7 +22,10 @@ import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
  *   knob if we ever need it — without the extra wiring in the demo path.
  */
 
-export const runtime = 'nodejs'
+// Note: with `cacheComponents: true` we can't set an explicit `runtime`
+// segment config — Node is the default for Vercel Functions anyway, and
+// Fluid Compute is the default Node compute model. Keep `maxDuration`
+// so streamed responses have room to finish.
 export const maxDuration = 60
 
 const RequestSchema = z.object({
