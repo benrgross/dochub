@@ -1,18 +1,23 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { GitBranch } from 'lucide-react'
 import { Nav } from '@/components/chrome/nav'
-import { PersonaPicker } from '@/components/chrome/persona-picker'
+import {
+  PersonaPickerServer,
+  PersonaPickerSkeleton,
+} from '@/components/chrome/persona-picker-server'
 import { NewChangeRequestModal } from '@/components/new-change-request-modal'
 import { AIBranchTrigger } from '@/components/ai-branch-trigger'
-import { getCurrentUser } from '@/lib/current-user'
 import { getPinnedDocument } from '@/app/_data/documents'
 
 /**
- * App chrome wraps every tab. Server Component — the only client islands are
- * the persona picker, nav, and the modals (where interactivity actually lives).
+ * App chrome wraps every tab. The pinned-doc fetch is cached so this layout
+ * is largely static. The only dynamic piece (the cookie-backed persona
+ * picker) lives in its own Suspense boundary so PPR can ship the chrome
+ * from the CDN and stream the picker.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const [user, doc] = await Promise.all([getCurrentUser(), getPinnedDocument()])
+  const doc = await getPinnedDocument()
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -33,7 +38,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="flex items-center gap-2">
-          <PersonaPicker current={user} />
+          <Suspense fallback={<PersonaPickerSkeleton />}>
+            <PersonaPickerServer />
+          </Suspense>
           {doc && (
             <>
               <AIBranchTrigger document={doc} />

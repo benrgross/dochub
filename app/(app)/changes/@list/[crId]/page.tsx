@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { ListContent, normalizeFilter } from '../page'
 
 interface PageProps {
@@ -6,14 +7,31 @@ interface PageProps {
 }
 
 /**
- * When the user navigates to /changes/[crId], the parallel @list slot
- * matches this route — same list as /changes, with the selected PR
- * highlighted. The list component is reused; only the `selectedId`
- * differs, so React keeps the DOM stable across navigation.
+ * @list slot when at /changes/[crId]. Same list as the index slot, but with
+ * the selected PR highlighted. Sync wrapper + Suspense around the dynamic
+ * read so PPR can stream the chrome before this resolves.
  */
-export default async function ListSlotWithSelection({ params, searchParams }: PageProps) {
+export default function ListSlotWithSelection(props: PageProps) {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <Body {...props} />
+    </Suspense>
+  )
+}
+
+async function Body({ params, searchParams }: PageProps) {
   const [{ crId }, sp] = await Promise.all([params, searchParams])
   return (
     <ListContent filter={normalizeFilter(sp.filter)} query={sp.q ?? ''} selectedId={crId} />
+  )
+}
+
+function Skeleton() {
+  return (
+    <div className="p-2 space-y-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-12 bg-secondary/30 rounded-md animate-pulse" />
+      ))}
+    </div>
   )
 }

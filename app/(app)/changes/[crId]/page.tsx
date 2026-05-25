@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ChangeRequestDetail } from '@/components/change-request-detail'
@@ -9,11 +10,8 @@ interface PageProps {
 }
 
 /**
- * Per-PR metadata. Lets Slack / Linear / email previews show the actual
- * PR title + a useful description without needing to load the page.
- * Powered by the cached `getChangeRequest` (same data the page uses, so
- * no extra DB hit). This is the "SEO + dynamic personalized content" beat
- * from the Track A rubric.
+ * Per-PR metadata for shareable links (Slack / Linear / email previews).
+ * Reuses the cached `getChangeRequest` so no extra DB hit.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { crId } = await params
@@ -33,9 +31,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function ChangeRequestPage({ params }: PageProps) {
+/**
+ * Cache Components require dynamic data (`cookies()`, `headers()`, `searchParams`)
+ * to be read inside a Suspense boundary so PPR can stream the static shell
+ * first. The page exports a sync wrapper; the actual fetch lives in `<Detail/>`.
+ */
+export default function ChangeRequestPage(props: PageProps) {
+  return (
+    <Suspense fallback={<DetailSkeleton />}>
+      <Detail {...props} />
+    </Suspense>
+  )
+}
+
+async function Detail({ params }: PageProps) {
   const { crId } = await params
   const [cr, currentUser] = await Promise.all([getChangeRequest(crId), getCurrentUser()])
   if (!cr) notFound()
   return <ChangeRequestDetail changeRequest={cr} currentUser={currentUser} />
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="h-full p-4 space-y-3">
+      <div className="h-6 w-2/3 bg-secondary/50 rounded animate-pulse" />
+      <div className="h-4 w-1/3 bg-secondary/40 rounded animate-pulse" />
+      <div className="h-72 bg-secondary/30 rounded mt-4 animate-pulse" />
+    </div>
+  )
 }

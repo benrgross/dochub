@@ -12,11 +12,24 @@ interface PageProps {
   searchParams: Promise<{ filter?: string; q?: string }>
 }
 
-export default async function ListSlot({ searchParams }: PageProps) {
+/**
+ * Default @list slot at /changes. Sync wrapper + Suspended async body —
+ * the searchParams read is dynamic so Cache Components requires it to
+ * live inside a Suspense boundary.
+ */
+export default function ListSlot(props: PageProps) {
+  return (
+    <Suspense fallback={<Skeleton />}>
+      <ListSlotBody {...props} />
+    </Suspense>
+  )
+}
+
+async function ListSlotBody({ searchParams }: PageProps) {
   const params = await searchParams
-  const filter = normalizeFilter(params.filter)
-  const query = params.q ?? ''
-  return <ListContent filter={filter} query={query} />
+  return (
+    <ListContent filter={normalizeFilter(params.filter)} query={params.q ?? ''} />
+  )
 }
 
 export async function ListContent({
