@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { formatDistanceToNow } from 'date-fns'
 import { GitPullRequest, GitMerge, X, MessageSquare, CheckCircle2, Bot } from 'lucide-react'
+import { TimeAgo } from '@/components/time-ago'
 import type { ChangeRequest } from '@/lib/types'
 
 interface ChangeRequestListProps {
@@ -78,7 +78,7 @@ function Item({ cr, isSelected }: { cr: ChangeRequest; isSelected: boolean }) {
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{cr.author}</span>
             <span>•</span>
-            <span>{formatDistanceToNow(cr.createdAt, { addSuffix: true })}</span>
+            <span><TimeAgo date={cr.createdAt} /></span>
             {cr.comments.length > 0 && (
               <>
                 <span>•</span>

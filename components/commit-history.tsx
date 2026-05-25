@@ -1,5 +1,6 @@
-import { formatDistanceToNow, format } from 'date-fns'
+import { format } from 'date-fns'
 import { GitCommit, FileText } from 'lucide-react'
+import { TimeAgo } from '@/components/time-ago'
 import type { Commit } from '@/lib/types'
 
 interface CommitHistoryProps {
@@ -26,7 +27,7 @@ export function CommitHistory({ commits, currentDocUpdatedAt }: CommitHistoryPro
             <div className="flex-1 pt-0.5">
               <div className="text-sm font-medium text-foreground">Current Version</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Last updated {formatDistanceToNow(currentDocUpdatedAt, { addSuffix: true })}
+                Last updated <TimeAgo date={currentDocUpdatedAt} />
               </div>
             </div>
           </div>
