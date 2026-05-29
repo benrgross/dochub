@@ -8,8 +8,11 @@ import { tag } from '@/lib/cache-tags'
 import { actionError, type FormActionState } from './_helpers'
 
 const PinSchema = z.object({
-  title: z.string().min(1, 'Title required').max(200),
-  content: z.string().min(1, 'Document content required').max(200_000),
+  title: z.string().min(1, 'Title required').max(200).transform((s) => s.trim()),
+  // Trim leading/trailing whitespace so previews and renders don't show
+  // a yawning empty gap before the first heading. Mid-content blank lines
+  // are preserved — they're meaningful in markdown.
+  content: z.string().min(1, 'Document content required').max(200_000).transform((s) => s.trim()),
 })
 
 /**

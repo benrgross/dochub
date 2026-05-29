@@ -3,18 +3,12 @@ import { getPinnedDocument } from '@/app/_data/documents'
 import { WelcomeTour } from '@/components/tour/welcome-tour'
 
 /**
- * Server-side wrapper that reads the cookie and decides whether to auto-open
- * the tour. Lives in its own component so it can sit inside a Suspense
- * boundary — `cookies()` is dynamic and Cache Components forces it there.
+ * Reads the tour cookie and the pinned-doc cache (in parallel) to decide
+ * whether to auto-open the tour and which step copy to show. Lives in its
+ * own component so it can sit inside a Suspense boundary — `cookies()` is
+ * dynamic and Cache Components requires it there.
  *
- * Also reads the pinned-doc cache so the tour copy can adapt: visitors
- * who hit the app with a doc already pinned see "create a change request"
- * messaging; first-time visitors with no doc see "pin a source of truth."
- * `getPinnedDocument()` is `use cache`-tagged, so this is a CDN read on
- * repeat visits — no extra DB hit.
- *
- * Returns null (renders nothing) for repeat visitors; the static shell
- * paints from the CDN with zero tour overhead.
+ * Returns null for repeat visitors; renders nothing on their request path.
  */
 export async function WelcomeTourServer() {
   const [seen, doc] = await Promise.all([hasSeenTour(), getPinnedDocument()])

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useOptimistic, useTransition, useActionState, useRef, startTransition } from 'react'
+import { useState, useOptimistic, useTransition, useActionState, startTransition } from 'react'
 import { DiffViewer } from './diff-viewer'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
@@ -25,6 +25,7 @@ import {
 } from '@/app/_actions/change-requests'
 import { addComment } from '@/app/_actions/comments'
 import { type FormActionState } from '@/app/_actions/_helpers'
+import { useDraftStorage } from '@/hooks/use-draft-storage'
 
 interface ChangeRequestDetailProps {
   changeRequest: ChangeRequest
@@ -271,8 +272,14 @@ function CommentsSection({
   currentUser: string
   onOptimistic: (next: Comment) => void
 }) {
-  const formRef = useRef<HTMLFormElement>(null)
   const [state, formAction, isPending] = useActionState<FormActionState, FormData>(addComment, null)
+
+  // Persist the in-progress comment to localStorage scoped per CR so the user
+  // can refresh / lose wifi without losing their typing. Cleared on successful
+  // submit; the Server Action remains the source of truth.
+  const [draft, setDraft, clearDraft] = useDraftStorage({
+    key: `comment:${changeRequestId}`,
+  })
 
   return (
     <div className="border-t border-border bg-background">
@@ -280,6 +287,14 @@ function CommentsSection({
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <MessageSquare className="w-4 h-4" />
           Comments ({comments.length})
+          {draft.length > 0 && (
+            <span
+              className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground"
+              title="Draft saved locally — survives refresh"
+            >
+              · draft saved
+            </span>
+          )}
         </div>
       </div>
 
@@ -297,10 +312,10 @@ function CommentsSection({
       </div>
 
       <form
-        ref={formRef}
         action={(fd) => {
-          const content = String(fd.get('content') ?? '').trim()
+          const content = draft.trim()
           if (!content) return
+          fd.set('content', content)
           startTransition(() => {
             onOptimistic({
               id: `tmp-${Date.now()}`,
@@ -310,14 +325,15 @@ function CommentsSection({
               createdAt: new Date(),
             })
             formAction(fd)
+            clearDraft()
           })
-          formRef.current?.reset()
         }}
         className="p-3 flex items-center gap-2"
       >
         <input type="hidden" name="changeRequestId" value={changeRequestId} />
         <input
-          name="content"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           type="text"
           placeholder="Add a comment..."
           autoComplete="off"
@@ -326,7 +342,7 @@ function CommentsSection({
         <Button
           type="submit"
           size="sm"
-          disabled={isPending}
+          disabled={isPending || !draft.trim()}
           className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

@@ -53,8 +53,8 @@ function buildSteps({
               edit the content — you&apos;ll see a real diff in the next step.
             </p>
             <p className="text-muted-foreground text-xs">
-              Pinning a different doc replaces the source of truth. The previous doc&apos;s merge
-              history stays intact via foreign keys.
+              Pinning a different doc replaces the source of truth. Previous merge history is
+              preserved.
             </p>
           </>
         ),
@@ -132,11 +132,8 @@ function buildSteps({
       body: (
         <>
           <p>
-            The persona picker in the header lets you act as different teammates — useful for
-            demoing the multi-user comment + approval flow on a single browser.
-          </p>
-          <p className="text-muted-foreground text-xs">
-            In production this slot becomes real auth (Clerk via the Vercel Marketplace).
+            The persona picker in the header lets you act as different teammates — handy for
+            walking through the multi-user comment + approval flow on a single browser.
           </p>
         </>
       ),

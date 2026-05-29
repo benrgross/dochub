@@ -117,8 +117,9 @@ export async function closeChangeRequest(input: { id: string }): Promise<FormAct
 
 /**
  * Merge: update the source doc, append a commit, mark CR merged.
- * Note: this is not a DB transaction. For the demo it's acceptable; v2 would
- * move this into a Postgres function or use Supabase's rpc.
+ *
+ * Not a single DB transaction; if you need transactional safety, fold
+ * this into a Postgres function (rpc).
  *
  * Invalidates: document (so the doc page sees new content this request),
  * commits (so history updates), the CR itself.

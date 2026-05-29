@@ -20,15 +20,9 @@ interface ModelPickerProps {
 }
 
 /**
- * Reusable model picker for AI features.
- *
- * Designed to drop into any AI-driven panel — AI Branch today, an "AI Audit"
- * or "AI Summary" flow tomorrow. Decoupled from any specific feature; the
- * caller owns `value` / `onChange` state.
- *
- * Why this matters in a customer pitch: model choice is a per-feature lever.
- * Some flows want the cheapest fast model, some want the smartest. AI Gateway
- * lets us swap with a string; this component is the UX wrapper for that lever.
+ * Reusable model picker for AI features. Decoupled from any specific
+ * feature — the caller owns `value` / `onChange` state, and can override
+ * `options` to expose a different model subset (e.g. admin UI).
  */
 export function ModelPicker({
   value,

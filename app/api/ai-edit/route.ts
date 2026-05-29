@@ -9,24 +9,14 @@ import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
 import { DEFAULT_MODEL_ID, isValidModelId } from '@/lib/models'
 
 /**
- * Streamed AI proposal endpoint.
- *
- * Why Node + Fluid Compute (not Edge):
- * - LLM streaming is mostly I/O wait. Fluid Compute reuses one function
- *   instance across concurrent streams and only bills Active CPU, so token
- *   wait time is free.
- * - Cache Components and several `use cache` features need Node anyway.
- *
- * Why a plain "provider/model" string and no `gateway()` wrapper:
- * - AI SDK 6 routes plain `"provider/model"` strings through AI Gateway
- *   automatically. We get observability, BYOK/OIDC, and a clean failover
- *   knob if we ever need it — without the extra wiring in the demo path.
+ * Streamed AI proposal endpoint. Uses AI SDK 6 streamText with two tools
+ * (proposeReplacement, proposeInsertion) routed through Vercel AI Gateway
+ * via the plain provider/model string.
  */
 
-// Note: with `cacheComponents: true` we can't set an explicit `runtime`
-// segment config — Node is the default for Vercel Functions anyway, and
-// Fluid Compute is the default Node compute model. Keep `maxDuration`
-// so streamed responses have room to finish.
+// Cache Components disallows explicit `runtime` segment config — Node is
+// the default for Vercel Functions. We keep maxDuration so streamed
+// responses have room to finish.
 export const maxDuration = 60
 
 const RequestSchema = z.object({

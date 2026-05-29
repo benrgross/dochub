@@ -3,10 +3,6 @@
  * Components. The "id" is the AI Gateway model slug (provider/model);
  * passing this string to the AI SDK routes the request through the gateway
  * automatically with observability + failover + cost tagging.
- *
- * Talking point: swapping providers is a single string change. No provider
- * SDK swap, no client refactor, no redeploy if the override lives in
- * Edge Config. This is exactly the value of AI Gateway as an indirection.
  */
 
 export interface ModelOption {
@@ -40,8 +36,7 @@ export const DEFAULT_MODEL_ID: (typeof MODELS)[number]['id'] = 'anthropic/claude
 /**
  * Returns true if the string is one of the allowed AI Gateway model slugs.
  * Used server-side to reject arbitrary user-supplied strings (cost/abuse
- * mitigation — we don't want someone aiming this endpoint at an expensive
- * model we haven't budgeted for).
+ * mitigation).
  */
 export function isValidModelId(id: string | undefined): id is ModelOption['id'] {
   if (!id) return false

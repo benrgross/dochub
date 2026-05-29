@@ -12,16 +12,15 @@ import type {
 export type ChangeRequestFilter = 'all' | 'open' | 'closed' | 'ai'
 
 /**
- * NOTE: We intentionally do NOT wrap the open change-request *list* in `use cache`
- * because the demo wants near-real-time PR status. It streams in via Suspense
- * for fast TTFB while the static shell paints from the CDN.
+ * The open change-request list is intentionally NOT wrapped in `use cache`
+ * — PR status changes too often for stale-then-revalidate to feel right.
+ * It streams in via a Suspense boundary so the static shell paints first.
  *
- * The list accepts an optional filter that maps to URL search params on
- * /changes — search params are dynamic, so the cached chrome layout stays
- * cached while only this Suspense boundary re-renders per filter.
+ * Filter + query come in via URL search params (dynamic), so only this
+ * Suspense boundary re-renders when they change.
  *
- * Individual change requests (and the history list) ARE cached, because they
- * change less often and we invalidate them precisely via `updateTag`.
+ * Individual change requests and the commit history ARE cached; we
+ * invalidate them precisely via `updateTag` after each mutation.
  */
 export async function listChangeRequests(
   documentId: string,

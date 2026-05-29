@@ -38,17 +38,16 @@ type Proposal =
 /**
  * AI Branch flow:
  *   1. User types instructions.
- *   2. We POST to /api/ai-edit with the doc + instructions (via transport.body()).
- *   3. The route streams `streamText` with two tools — proposeReplacement and
- *      proposeInsertion — and we render each tool call as a card the moment it
- *      arrives. The user sees the AI's reasoning in real time.
- *   4. We apply the accepted proposals to the doc client-side to compute
- *      the proposed content, render a real diff, and let the user create a
- *      Change Request via Server Action.
+ *   2. We POST to /api/ai-edit with the doc (via transport.body()) and
+ *      the instructions as the user message.
+ *   3. The route streams `streamText` with two tools — proposeReplacement
+ *      and proposeInsertion — and we render each tool call as a card the
+ *      moment it arrives.
+ *   4. We apply the accepted proposals client-side to compute the proposed
+ *      content, render a diff, and create a Change Request via Server Action.
  *
- * Why no auto-merge: human-in-the-loop is the agent-platform narrative.
- * AI proposes; humans approve. The "auto-merge" toggle from the v0 starter
- * is intentionally gone.
+ * Human-in-the-loop only — there is no auto-merge path. The user always
+ * reviews the diff before a Change Request is created.
  */
 export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps) {
   const router = useRouter()
@@ -197,7 +196,7 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
                 </label>
                 <div className="bg-background border border-border rounded-lg p-3 max-h-40 overflow-y-auto">
                   <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                    {document.content}
+                    {document.content.trim()}
                   </pre>
                 </div>
               </div>

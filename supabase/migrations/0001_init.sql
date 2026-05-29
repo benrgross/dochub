@@ -1,5 +1,8 @@
--- DocHub initial schema
--- v1 demo: RLS disabled for simplicity; v2 enables RLS with Clerk-issued JWTs.
+-- DocHub initial schema.
+-- RLS is intentionally disabled; this app currently treats documents and
+-- change requests as workspace-public. To enable RLS, scope every table by
+-- a workspace_id and surface a session JWT through the cookie-bound
+-- Supabase client.
 
 create extension if not exists pgcrypto;
 
@@ -13,7 +16,7 @@ create table if not exists public.documents (
   updated_at  timestamptz not null default now()
 );
 
--- Only one pinned document at a time (demo simplifying assumption).
+-- Exactly one pinned document at a time. Enforced at the database layer.
 create unique index if not exists documents_one_pinned
   on public.documents ((pinned)) where pinned = true;
 

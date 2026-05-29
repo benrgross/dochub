@@ -1,11 +1,7 @@
 import { routes, type VercelConfig } from '@vercel/config/v1'
 
 /**
- * Typed Vercel project configuration (replaces vercel.json).
- *
- * The CLI auto-compiles this to vercel.json during build/dev/deploy.
- * Lets us configure crons, headers, redirects, and rewrites with full
- * TypeScript + env access — no JSON gymnastics.
+ * Typed Vercel project configuration. Compiled to vercel.json at build.
  */
 export const config: VercelConfig = {
   framework: 'nextjs',

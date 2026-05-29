@@ -10,12 +10,11 @@ interface TimeAgoProps {
 
 /**
  * Relative time formatter. Client-only — `Date.now()` is non-deterministic
- * at SSR/prerender, and relative time should reflect the *user's* clock
- * anyway (a New York user reading a comment posted "2 minutes ago" should
- * see 2 minutes from their wall clock, not the server's).
+ * at SSR/prerender, and relative time should reflect the user's clock.
  *
- * Renders an absolute ISO timestamp as the SSR fallback (no hydration
- * mismatch, no layout shift) and swaps to the relative phrase on mount.
+ * SSR renders an absolute ISO timestamp (no hydration mismatch, no layout
+ * shift); the relative phrase replaces it on mount and refreshes every
+ * minute.
  */
 export function TimeAgo({ date, addSuffix = true }: TimeAgoProps) {
   const d = date instanceof Date ? date : new Date(date)

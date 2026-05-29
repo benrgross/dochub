@@ -1,5 +1,5 @@
 /**
- * Client-safe constants for the v1 persona picker. Pure data — importable
+ * Client-safe constants for the persona picker. Pure data — importable
  * from both Server Components (via `getCurrentUser`) and Client Components
  * (the picker dropdown).
  */

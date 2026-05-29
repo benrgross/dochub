@@ -13,10 +13,9 @@ import { TourTrigger } from '@/components/tour/tour-trigger'
 import { getPinnedDocument } from '@/app/_data/documents'
 
 /**
- * App chrome wraps every tab. The pinned-doc fetch is cached so this layout
- * is largely static. The only dynamic piece (the cookie-backed persona
- * picker) lives in its own Suspense boundary so PPR can ship the chrome
- * from the CDN and stream the picker.
+ * App chrome wraps every tab. The pinned-doc fetch is cached so this
+ * layout is largely static. The cookie-backed persona picker, nav, and
+ * tour gate are isolated in Suspense boundaries.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const doc = await getPinnedDocument()
@@ -59,16 +58,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="flex-1 min-h-0 overflow-hidden">{children}</main>
 
       <footer className="px-4 py-2 border-t border-border bg-card/50 text-xs text-muted-foreground flex items-center justify-between">
-        <span>Built for the Vercel SA take-home demo</span>
+        <span>DocHub</span>
         <div className="flex items-center gap-4">
           <TourTrigger />
           <span>Source control for documents</span>
         </div>
       </footer>
 
-      {/* Cookie-gated tour. Server reads the cookie inside Suspense so the
-          static shell still paints from the CDN; the tour modal streams
-          in independently for first-time visitors only. */}
+      {/* Cookie-gated tour. Renders nothing for repeat visitors. */}
       <Suspense fallback={null}>
         <WelcomeTourServer />
       </Suspense>

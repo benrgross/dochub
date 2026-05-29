@@ -10,8 +10,7 @@ interface PersonaPickerProps {
 }
 
 /**
- * Small persona switcher in the header. Backed by a cookie via Server Action;
- * stub for real Clerk auth in v2.
+ * Header persona switcher. Backed by a cookie via Server Action.
  */
 export function PersonaPicker({ current }: PersonaPickerProps) {
   const formRef = useRef<HTMLFormElement>(null)

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { rateLimit } from '@/lib/runtime-cache'
 
 /**
- * Routing Middleware (Fluid Compute, full Node).
+ * Routing Middleware.
  *
  * Responsibilities:
  *   1. Apply security headers to every response (CSP, X-Frame-Options, etc.).
@@ -10,8 +10,8 @@ import { rateLimit } from '@/lib/runtime-cache'
  *      AI Gateway budget from runaway loops or accidental DoS.
  *
  * Notes:
- *   - Runs *before* the cache, so 429s never pollute cached responses.
- *   - Fails open if the Runtime Cache is unreachable (graceful degradation).
+ *   - Runs before the cache, so 429s never pollute cached responses.
+ *   - Fails open if the Runtime Cache is unreachable.
  */
 
 const AI_LIMIT = { limit: 10, windowSec: 60 }
@@ -56,8 +56,7 @@ function applySecurityHeaders(res: NextResponse): void {
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   // Conservative CSP: allow self + Vercel's analytics/insights endpoints.
-  // Tightening this further requires nonce-based inline scripts; out of
-  // scope for the demo but worth flagging in the architecture review.
+  // Tightening further requires nonce-based inline scripts.
   res.headers.set(
     'Content-Security-Policy',
     [

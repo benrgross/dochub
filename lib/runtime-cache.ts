@@ -44,8 +44,7 @@ export async function rateLimit(
     }
   } catch (error) {
     // Fail open — never block legitimate traffic because the cache layer
-    // hiccuped. The talking point: production rate limiters degrade
-    // gracefully; they don't take the app down with them.
+    // hiccuped.
     console.error('[rate-limit] cache error', error)
     return { ok: true, remaining: limit, resetAt: Date.now() + windowSec * 1000, limit }
   }
