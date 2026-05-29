@@ -8,6 +8,8 @@ import {
 } from '@/components/chrome/persona-picker-server'
 import { NewChangeRequestModal } from '@/components/new-change-request-modal'
 import { AIBranchTrigger } from '@/components/ai-branch-trigger'
+import { WelcomeTourServer } from '@/components/tour/welcome-tour-server'
+import { TourTrigger } from '@/components/tour/tour-trigger'
 import { getPinnedDocument } from '@/app/_data/documents'
 
 /**
@@ -58,8 +60,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <footer className="px-4 py-2 border-t border-border bg-card/50 text-xs text-muted-foreground flex items-center justify-between">
         <span>Built for the Vercel SA take-home demo</span>
-        <span>Source control for documents</span>
+        <div className="flex items-center gap-4">
+          <TourTrigger />
+          <span>Source control for documents</span>
+        </div>
       </footer>
+
+      {/* Cookie-gated tour. Server reads the cookie inside Suspense so the
+          static shell still paints from the CDN; the tour modal streams
+          in independently for first-time visitors only. */}
+      <Suspense fallback={null}>
+        <WelcomeTourServer />
+      </Suspense>
     </div>
   )
 }
