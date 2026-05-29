@@ -1,5 +1,5 @@
 {
-  "name": "my-project",
+  "name": "dochub",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -48,7 +48,6 @@
     "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.185",
     "autoprefixer": "^10.4.20",
-    "botid": "^1.5.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
