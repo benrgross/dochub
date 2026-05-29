@@ -20,109 +20,154 @@ import { dismissTour } from '@/app/_actions/tour'
 interface WelcomeTourProps {
   /** When true, the tour opens on mount. Server passes this based on cookie. */
   autoOpen: boolean
+  /** Whether a source-of-truth document is already pinned — drives the tour copy. */
+  hasDocument?: boolean
+  /** Title of the pinned doc, used in the contextualized step copy. */
+  docTitle?: string
 }
 
-const STEPS = [
-  {
-    title: 'Welcome to DocHub',
-    icon: GitBranch,
-    body: (
-      <>
-        <p>
-          DocHub gives your team a <strong className="text-foreground">GitHub-style merge workflow</strong> for
-          long-lived shared documents — PRDs, runbooks, policies, security questionnaires.
-        </p>
-        <p>
-          Every edit, human or AI, opens a <em>Change Request</em> with a diff, threaded
-          comments, and a one-click merge.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: 'Pin a source of truth',
-    icon: FileText,
-    body: (
-      <>
-        <p>
-          Start by uploading a markdown document and pinning it as the source of truth.
-          Drag-and-drop is fine. Only one document is pinned at a time.
-        </p>
-        <p className="text-muted-foreground text-xs">
-          Try the <strong>Upload</strong> page from the redirect, or replace the pinned doc later
-          from the same screen.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: 'Let the AI propose edits',
-    icon: Bot,
-    body: (
-      <>
-        <p>
-          Click <strong className="text-foreground">AI Branch</strong> in the header. Pick a model
-          (Claude or GPT), describe the change in plain English, and watch tool calls stream in.
-        </p>
-        <p>
-          Each proposal is a structured edit (replacement or insertion) with a one-line rationale.
-          You stay in the loop — nothing merges automatically.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: 'Review the diff like a PR',
-    icon: GitPullRequest,
-    body: (
-      <>
-        <p>
-          Every Change Request opens with a unified or split diff. Comment on it, approve it,
-          merge it. The source doc updates in the same request.
-        </p>
-        <p className="text-muted-foreground text-xs">
-          Filter PRs by status or search by title from the sidebar. AI-authored PRs are tagged
-          with a bot icon so reviewers know to scrutinize.
-        </p>
-      </>
-    ),
-  },
-  {
-    title: 'Switch personas',
-    icon: UserCircle2,
-    body: (
-      <>
-        <p>
-          The persona picker in the header lets you act as different teammates — useful for
-          demoing the multi-user comment + approval flow on a single browser.
-        </p>
-        <p className="text-muted-foreground text-xs">
-          In production this slot becomes real auth (Clerk via the Vercel Marketplace).
-        </p>
-      </>
-    ),
-  },
-  {
-    title: "You're ready",
-    icon: Sparkles,
-    body: (
-      <>
-        <p>
-          Pin a doc, branch with AI, merge with a click. Every merge lands in the{' '}
-          <strong className="text-foreground">History</strong> tab as a commit.
-        </p>
-        <p className="text-muted-foreground text-xs">
-          You can replay this tour anytime from the footer.
-        </p>
-      </>
-    ),
-  },
-] as const
+interface Step {
+  title: string
+  icon: React.ComponentType<{ className?: string }>
+  body: React.ReactNode
+}
 
-export function WelcomeTour({ autoOpen }: WelcomeTourProps) {
+function buildSteps({
+  hasDocument,
+  docTitle,
+}: {
+  hasDocument: boolean
+  docTitle?: string
+}): Step[] {
+  const docLabel = docTitle ? `"${docTitle}"` : 'the pinned document'
+
+  const startHereStep: Step = hasDocument
+    ? {
+        title: `Try changing ${docLabel}`,
+        icon: GitPullRequest,
+        body: (
+          <>
+            <p>
+              A source-of-truth doc is already pinned. To propose an edit, open{' '}
+              <strong className="text-foreground">New Change Request</strong> in the header and
+              edit the content — you&apos;ll see a real diff in the next step.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Pinning a different doc replaces the source of truth. The previous doc&apos;s merge
+              history stays intact via foreign keys.
+            </p>
+          </>
+        ),
+      }
+    : {
+        title: 'Pin a source of truth',
+        icon: FileText,
+        body: (
+          <>
+            <p>
+              Start by uploading a markdown document and pinning it as the source of truth.
+              Drag-and-drop is fine. Only one document is pinned at a time.
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Head to <strong>Upload</strong> from the redirect, or replace the pinned doc later
+              from the same screen.
+            </p>
+          </>
+        ),
+      }
+
+  return [
+    {
+      title: 'Welcome to DocHub',
+      icon: GitBranch,
+      body: (
+        <>
+          <p>
+            DocHub gives your team a <strong className="text-foreground">GitHub-style merge workflow</strong> for
+            long-lived shared documents — PRDs, runbooks, policies, security questionnaires.
+          </p>
+          <p>
+            Every edit, human or AI, opens a <em>Change Request</em> with a diff, threaded
+            comments, and a one-click merge.
+          </p>
+        </>
+      ),
+    },
+    startHereStep,
+    {
+      title: 'Let the AI propose edits',
+      icon: Bot,
+      body: (
+        <>
+          <p>
+            Click <strong className="text-foreground">AI Branch</strong> in the header. Pick a model
+            (Claude or GPT), describe the change in plain English, and watch tool calls stream in.
+          </p>
+          <p>
+            Each proposal is a structured edit (replacement or insertion) with a one-line rationale.
+            You stay in the loop — nothing merges automatically.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: 'Review the diff like a PR',
+      icon: GitPullRequest,
+      body: (
+        <>
+          <p>
+            Every Change Request opens with a unified or split diff. Comment on it, approve it,
+            merge it. The source doc updates in the same request.
+          </p>
+          <p className="text-muted-foreground text-xs">
+            Filter PRs by status or search by title from the sidebar. AI-authored PRs are tagged
+            with a bot icon so reviewers know to scrutinize.
+          </p>
+        </>
+      ),
+    },
+    {
+      title: 'Switch personas',
+      icon: UserCircle2,
+      body: (
+        <>
+          <p>
+            The persona picker in the header lets you act as different teammates — useful for
+            demoing the multi-user comment + approval flow on a single browser.
+          </p>
+          <p className="text-muted-foreground text-xs">
+            In production this slot becomes real auth (Clerk via the Vercel Marketplace).
+          </p>
+        </>
+      ),
+    },
+    {
+      title: "You're ready",
+      icon: Sparkles,
+      body: (
+        <>
+          <p>
+            {hasDocument
+              ? 'Open a Change Request or branch with AI, then merge with a click.'
+              : 'Pin a doc, branch with AI, merge with a click.'}{' '}
+            Every merge lands in the{' '}
+            <strong className="text-foreground">History</strong> tab as a commit.
+          </p>
+          <p className="text-muted-foreground text-xs">
+            You can replay this tour anytime from the footer.
+          </p>
+        </>
+      ),
+    },
+  ]
+}
+
+export function WelcomeTour({ autoOpen, hasDocument = false, docTitle }: WelcomeTourProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [, startTransition] = useTransition()
+
+  const steps = buildSteps({ hasDocument, docTitle })
 
   useEffect(() => {
     if (autoOpen) setIsOpen(true)
@@ -130,9 +175,9 @@ export function WelcomeTour({ autoOpen }: WelcomeTourProps) {
 
   if (!isOpen) return null
 
-  const last = step === STEPS.length - 1
+  const last = step === steps.length - 1
   const first = step === 0
-  const { title, body, icon: Icon } = STEPS[step]
+  const { title, body, icon: Icon } = steps[step]
 
   function handleClose() {
     setIsOpen(false)
@@ -148,7 +193,7 @@ export function WelcomeTour({ autoOpen }: WelcomeTourProps) {
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
             <span>
-              Tour · {step + 1} of {STEPS.length}
+              Tour · {step + 1} of {steps.length}
             </span>
           </div>
           <button
@@ -173,7 +218,7 @@ export function WelcomeTour({ autoOpen }: WelcomeTourProps) {
 
         {/* Progress dots */}
         <div className="flex items-center justify-center gap-1.5 px-5 pb-3">
-          {STEPS.map((_, i) => (
+          {steps.map((_, i) => (
             <span
               key={i}
               className={`h-1.5 rounded-full transition-all ${
