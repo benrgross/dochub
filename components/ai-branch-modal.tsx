@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { DiffViewer } from '@/components/diff-viewer'
+import { ModelPickerPills } from '@/components/model-picker'
+import { DEFAULT_MODEL_ID, findModel } from '@/lib/models'
 import type { DocumentRow, AiMetadata, ToolCallRecord } from '@/lib/types'
 import { createChangeRequest } from '@/app/_actions/change-requests'
 
@@ -54,16 +56,22 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
   const [branchName, setBranchName] = useState('')
   const [pending, startTransition] = useTransition()
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID)
+  const modelIdRef = useRef(modelId)
+  modelIdRef.current = modelId
 
   // Stabilize the transport so useChat doesn't bind to a stale closure of
   // `instructions`. Doc fields are static per session; the user's text
   // (the instructions) ships as the message body via sendMessage({ text }).
+  // Model is read through a ref so picker changes don't re-build the
+  // transport mid-stream — the next request just picks up the new value.
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/ai-edit',
         body: () => ({
           document: { id: document.id, title: document.title, content: document.content },
+          model: modelIdRef.current,
         }),
       }),
     [document.id, document.title, document.content],
@@ -111,7 +119,8 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
             },
       )
       const aiMetadata: AiMetadata = {
-        model: 'anthropic/claude-sonnet-4.6',
+        model: modelId,
+        provider: findModel(modelId)?.provider,
         instructions,
         toolCalls,
       }
@@ -153,7 +162,7 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
             <div>
               <h2 className="text-lg font-semibold text-foreground">AI Branch</h2>
               <p className="text-sm text-muted-foreground">
-                Claude proposes structured edits — humans review and merge.
+                Pick a model. It proposes structured edits — humans review and merge.
               </p>
             </div>
           </div>
@@ -166,9 +175,12 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
           {!hasProposal ? (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  What changes should Claude make?
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">
+                    What changes should the AI make?
+                  </label>
+                  <ModelPickerPills value={modelId} onChange={setModelId} disabled={isStreaming} />
+                </div>
                 <Textarea
                   placeholder="e.g., Tighten the goals section, add a security paragraph, fix grammar issues..."
                   value={instructions}

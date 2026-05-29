@@ -6,6 +6,7 @@ import {
   type UIMessage,
 } from 'ai'
 import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
+import { DEFAULT_MODEL_ID, isValidModelId } from '@/lib/models'
 
 /**
  * Streamed AI proposal endpoint.
@@ -35,6 +36,9 @@ const RequestSchema = z.object({
     title: z.string(),
     content: z.string().max(200_000),
   }),
+  // Optional user-selected model. Server-side allowlist enforced below;
+  // the Edge Config admin override (resolveAiModel) still wins if set.
+  model: z.string().optional(),
 })
 
 export async function POST(req: Request) {
@@ -52,7 +56,7 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages, document } = parsed
+  const { messages, document, model: requestedModel } = parsed
 
   // The user's most recent text message is the instructions. Pulling it
   // from the message stream avoids a duplicate field and stale-closure
@@ -62,7 +66,13 @@ export async function POST(req: Request) {
     return Response.json({ error: 'No instructions provided' }, { status: 400 })
   }
 
-  const model = await resolveAiModel()
+  // Resolution order:
+  //   1. Edge Config admin override (resolveAiModel) — wins if not 'auto'
+  //   2. User-selected model from the picker (allowlisted via isValidModelId)
+  //   3. Default Claude
+  const adminOverride = await resolveAiModel()
+  const userPick = isValidModelId(requestedModel) ? requestedModel : undefined
+  const model = adminOverride !== DEFAULT_MODEL_ID ? adminOverride : (userPick ?? DEFAULT_MODEL_ID)
 
   const result = streamText({
     model,

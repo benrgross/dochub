@@ -17,7 +17,7 @@ export interface ToolCallRecord {
 
 export interface AiMetadata {
   model: string
-  provider?: string
+  provider?: 'anthropic' | 'openai' | string
   instructions: string
   toolCalls: ToolCallRecord[]
 }
