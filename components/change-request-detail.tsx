@@ -30,9 +30,19 @@ import { useDraftStorage } from '@/hooks/use-draft-storage'
 interface ChangeRequestDetailProps {
   changeRequest: ChangeRequest
   currentUser: string
+  /**
+   * Server-rendered AI summary, passed as a slot so the async Server
+   * Component can stream into this Client Component via its own Suspense
+   * boundary (set up by the page).
+   */
+  summarySlot?: React.ReactNode
 }
 
-export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeRequestDetailProps) {
+export function ChangeRequestDetail({
+  changeRequest,
+  currentUser,
+  summarySlot,
+}: ChangeRequestDetailProps) {
   const [viewMode, setViewMode] = useState<'split' | 'unified'>('unified')
   const [showDescription, setShowDescription] = useState(true)
   const [isPending, startPendingTransition] = useTransition()
@@ -155,6 +165,8 @@ export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeReques
             </div>
           </details>
         )}
+
+        {summarySlot}
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">

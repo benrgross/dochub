@@ -16,4 +16,6 @@ export const tag = {
   commits: (docId?: string) => (docId ? `commits:${docId}` : 'commits'),
   /** A single change request and its comments. */
   changeRequest: (id: string) => `change-request:${id}`,
+  /** AI-generated summary for a change request (expensive to compute — cached separately). */
+  crSummary: (id: string) => `cr-summary:${id}`,
 }
