@@ -32,8 +32,8 @@ DocHub treats the document as a `main` branch. Every edit — human or AI — op
 
 ```mermaid
 flowchart LR
-  user[Browser] --> middleware[Routing Middleware<br/>security headers + rate limit]
-  middleware --> rsc[Next.js 16 RSC<br/>PPR + use cache + Suspense]
+  user[Browser] --> proxy[Proxy<br/>security headers + rate limit]
+  proxy --> rsc[Next.js 16 RSC<br/>PPR + use cache + Suspense]
   rsc --> cdn[CDN edge cache]
   rsc --> supabase[(Supabase Postgres)]
   user --> action[Server Actions<br/>Zod + updateTag]
@@ -84,7 +84,7 @@ All writes go through Server Actions in [`app/_actions/`](app/_actions/). Each o
 
 ### Security & observability
 
-- **Routing Middleware** ([`middleware.ts`](middleware.ts)): security headers (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, X-Content-Type-Options) on every response.
+- **Proxy** ([`proxy.ts`](proxy.ts), Next.js 16's renamed Middleware convention): security headers (CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, X-Content-Type-Options) on every response.
 - **Rate limit**: 10 req/min/IP on `POST /api/ai-edit` via Vercel Runtime Cache (`@vercel/functions` `getCache()` — no Redis required). Fails open if the cache layer hiccups.
 - **Speed Insights + Web Analytics** wired in [`app/layout.tsx`](app/layout.tsx) (production-only).
 
@@ -183,7 +183,7 @@ lib/
   supabase/
     server.ts                 Cookie-bound client (mutations)
     service.ts                Non-cookie client (cached reads)
-middleware.ts                 Security headers + AI route rate limit
+proxy.ts                      Security headers + AI route rate limit
 vercel.ts                     Typed Vercel project config
 supabase/migrations/          Postgres schema
 ```

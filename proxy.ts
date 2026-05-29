@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { rateLimit } from '@/lib/runtime-cache'
 
 /**
- * Routing Middleware.
+ * Proxy (Next.js 16's renamed Middleware convention).
  *
  * Responsibilities:
  *   1. Apply security headers to every response (CSP, X-Frame-Options, etc.).
@@ -16,7 +16,7 @@ import { rateLimit } from '@/lib/runtime-cache'
 
 const AI_LIMIT = { limit: 10, windowSec: 60 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (req.method === 'POST' && req.nextUrl.pathname === '/api/ai-edit') {
     const ip = clientIp(req)
     const result = await rateLimit(`ai-edit:${ip}`, AI_LIMIT)
