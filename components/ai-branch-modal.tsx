@@ -305,6 +305,27 @@ function ProposalView({
         <div className="text-foreground">{instructions}</div>
       </div>
 
+      {/* Fallback in the edits slot: shows only while streaming before the
+          first tool call arrives, then is replaced by the real cards as they
+          stream in. Leaves the preamble summary below untouched. */}
+      {proposals.length === 0 && isStreaming && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            Proposing edits
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="border border-border bg-background rounded-md p-3">
+                <div className="h-3 w-24 bg-secondary/50 rounded animate-pulse mb-2" />
+                <div className="h-4 w-full bg-secondary/40 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {proposals.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
