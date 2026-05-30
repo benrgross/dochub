@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { ChangesShell } from '@/components/chrome/changes-shell'
 import { getPinnedDocument } from '@/app/_data/documents'
 
 /**
@@ -17,14 +18,5 @@ export default async function ChangesLayout({
   const doc = await getPinnedDocument()
   if (!doc) redirect('/upload')
 
-  return (
-    <div className="h-full flex flex-col md:flex-row">
-      {/* On phones the list sits on top in a capped, scrollable strip; at md+
-          it becomes the fixed-width sidebar. */}
-      <div className="w-full md:w-80 max-h-52 md:max-h-none shrink-0 border-b md:border-b-0 md:border-r border-border bg-card overflow-y-auto md:overflow-hidden">
-        {list}
-      </div>
-      <div className="flex-1 min-h-0 min-w-0 bg-background">{children}</div>
-    </div>
-  )
+  return <ChangesShell list={list} detail={children} />
 }
