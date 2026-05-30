@@ -1,10 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { AIBranchModal } from '@/components/ai-branch-modal'
 import type { DocumentRow } from '@/lib/types'
+
+// Code-split the AI modal: it pulls in @ai-sdk/react (useChat), the streaming
+// client, and the diff engine. Loading it on demand keeps that weight out of
+// the initial bundle on every page where the header trigger appears.
+const AIBranchModal = dynamic(
+  () => import('@/components/ai-branch-modal').then((m) => m.AIBranchModal),
+  { ssr: false },
+)
 
 interface AIBranchTriggerProps {
   document: DocumentRow
@@ -18,7 +26,9 @@ export function AIBranchTrigger({ document }: AIBranchTriggerProps) {
         <Bot className="w-4 h-4 mr-2" />
         AI Branch
       </Button>
-      <AIBranchModal document={document} isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      {isOpen && (
+        <AIBranchModal document={document} isOpen onClose={() => setIsOpen(false)} />
+      )}
     </>
   )
 }
