@@ -174,11 +174,16 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
           {!hasProposal ? (
             <>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <label className="text-sm font-medium text-foreground">
                     What changes should the AI make?
                   </label>
-                  <ModelPickerPills value={modelId} onChange={setModelId} disabled={isStreaming} />
+                  <div className="space-y-1">
+                    <span className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">
+                      Model
+                    </span>
+                    <ModelPickerPills value={modelId} onChange={setModelId} disabled={isStreaming} />
+                  </div>
                 </div>
                 <Textarea
                   placeholder="e.g., Tighten the goals section, add a security paragraph, fix grammar issues..."
@@ -216,13 +221,13 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
 
           {error && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error.message || 'AI request failed'}</span>
             </div>
           )}
           {submitError && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{submitError}</span>
             </div>
           )}

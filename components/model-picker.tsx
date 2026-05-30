@@ -63,7 +63,7 @@ export function ModelPicker({
               <div className="text-xs text-muted-foreground truncate">{selected.hint}</div>
             )}
           </div>
-          <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
 
           <select
             aria-labelledby={label ? labelId : undefined}
@@ -96,7 +96,7 @@ export function ModelPickerPills({
   disabled = false,
 }: Omit<ModelPickerProps, 'compact' | 'label'>) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {options.map((m) => {
         const isActive = m.id === value
         return (
@@ -105,7 +105,7 @@ export function ModelPickerPills({
             type="button"
             onClick={() => onChange(m.id)}
             disabled={disabled}
-            className={`group inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               isActive
                 ? 'border-primary/50 bg-primary/10 text-foreground'
                 : 'border-border bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30'
@@ -135,7 +135,7 @@ function ProviderBadge({
   if (provider === 'anthropic') {
     return (
       <div
-        className={`${dim} rounded flex items-center justify-center bg-orange-500/15 border border-orange-500/30 flex-shrink-0`}
+        className={`${dim} rounded flex items-center justify-center bg-orange-500/15 border border-orange-500/30 shrink-0`}
         title="Anthropic"
       >
         <span className={`${text} font-bold text-orange-400`}>A</span>
@@ -144,7 +144,7 @@ function ProviderBadge({
   }
   return (
     <div
-      className={`${dim} rounded flex items-center justify-center bg-emerald-500/15 border border-emerald-500/30 flex-shrink-0`}
+      className={`${dim} rounded flex items-center justify-center bg-emerald-500/15 border border-emerald-500/30 shrink-0`}
       title="OpenAI"
     >
       <Sparkles className={size === 'xs' ? 'w-2.5 h-2.5 text-emerald-400' : 'w-3 h-3 text-emerald-400'} />
