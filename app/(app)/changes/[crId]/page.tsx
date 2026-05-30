@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Sparkles } from 'lucide-react'
 import { ChangeRequestDetail } from '@/components/change-request-detail'
 import { getChangeRequest } from '@/app/_data/change-requests'
+import { ensureChangeRequestSummary } from '@/app/_data/cr-summary'
 import { getCurrentUser } from '@/lib/current-user'
 
 interface PageProps {
@@ -57,7 +59,54 @@ async function Detail({ params }: PageProps) {
   const { crId } = await params
   const [cr, currentUser] = await Promise.all([getChangeRequest(crId), getCurrentUser()])
   if (!cr) notFound()
-  return <ChangeRequestDetail changeRequest={cr} currentUser={currentUser} />
+  return (
+    <ChangeRequestDetail
+      changeRequest={cr}
+      currentUser={currentUser}
+      summarySlot={
+        cr.aiMetadata ? (
+          <Suspense fallback={<SummarySkeleton />}>
+            <PrSummary crId={cr.id} />
+          </Suspense>
+        ) : null
+      }
+    />
+  )
+}
+
+/**
+ * AI summary of the proposed edits. Generated once (and cached in the DB) by
+ * `ensureChangeRequestSummary`, so it's an expensive call on first view and a
+ * fast read after. Its own Suspense boundary streams it in while the diff and
+ * comments stay interactive.
+ */
+async function PrSummary({ crId }: { crId: string }) {
+  const summary = await ensureChangeRequestSummary(crId)
+  if (!summary) return null
+  return (
+    <div className="mt-3 rounded-md border border-purple-500/30 bg-purple-500/5 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-purple-300 mb-1.5">
+        <Sparkles className="w-3.5 h-3.5" />
+        AI summary
+      </div>
+      <p className="text-sm text-foreground/90 leading-6">{summary}</p>
+    </div>
+  )
+}
+
+function SummarySkeleton() {
+  return (
+    <div className="mt-3 rounded-md border border-border bg-secondary/20 p-3">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+        <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+        Generating summary…
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-3 w-full bg-secondary/50 rounded animate-pulse" />
+        <div className="h-3 w-4/5 bg-secondary/50 rounded animate-pulse" />
+      </div>
+    </div>
+  )
 }
 
 function DetailSkeleton() {

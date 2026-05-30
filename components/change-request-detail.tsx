@@ -30,9 +30,19 @@ import { useDraftStorage } from '@/hooks/use-draft-storage'
 interface ChangeRequestDetailProps {
   changeRequest: ChangeRequest
   currentUser: string
+  /**
+   * Server-rendered AI summary, passed as a slot so the async Server
+   * Component can stream into this Client Component via its own Suspense
+   * boundary (set up by the page).
+   */
+  summarySlot?: React.ReactNode
 }
 
-export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeRequestDetailProps) {
+export function ChangeRequestDetail({
+  changeRequest,
+  currentUser,
+  summarySlot,
+}: ChangeRequestDetailProps) {
   const [viewMode, setViewMode] = useState<'split' | 'unified'>('unified')
   const [showDescription, setShowDescription] = useState(true)
   const [isPending, startPendingTransition] = useTransition()
@@ -122,19 +132,23 @@ export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeReques
           )}
         </div>
 
-        <button
-          onClick={() => setShowDescription(!showDescription)}
-          className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${showDescription ? '' : '-rotate-90'}`}
-          />
-          Description
-        </button>
-        {showDescription && changeRequest.description && (
-          <p className="mt-2 text-sm text-foreground/80 bg-secondary/30 p-3 rounded-md whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
-            {changeRequest.description}
-          </p>
+        {changeRequest.description && (
+          <>
+            <button
+              onClick={() => setShowDescription(!showDescription)}
+              className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${showDescription ? '' : '-rotate-90'}`}
+              />
+              Description
+            </button>
+            {showDescription && (
+              <p className="mt-2 text-sm text-foreground/80 bg-secondary/30 p-3 rounded-md whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+                {changeRequest.description}
+              </p>
+            )}
+          </>
         )}
 
         {isAi && changeRequest.aiMetadata && (
@@ -155,6 +169,8 @@ export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeReques
             </div>
           </details>
         )}
+
+        {summarySlot}
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">

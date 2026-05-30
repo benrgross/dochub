@@ -32,6 +32,7 @@ create table if not exists public.change_requests (
   original_content  text not null,
   proposed_content  text not null,
   ai_metadata       jsonb,
+  ai_summary        text,
   created_at        timestamptz not null default now(),
   approved_by       text,
   approved_at       timestamptz

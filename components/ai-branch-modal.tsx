@@ -123,10 +123,12 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
         instructions,
         toolCalls,
       }
+      // Create instantly — the reviewer-facing summary is generated lazily
+      // (and cached) on the PR detail page, behind a Suspense boundary.
       const result = await createChangeRequest({
         documentId: document.id,
         title: branchName.trim(),
-        description: summary || `AI-generated changes based on: "${instructions}"`,
+        description: '',
         originalContent: document.content,
         proposedContent: proposed,
         aiMetadata,
