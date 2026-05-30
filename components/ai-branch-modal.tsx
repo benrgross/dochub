@@ -46,6 +46,8 @@ type Proposal =
  *   4. We apply the accepted proposals client-side to compute the proposed
  *      content, render a diff, and create a Change Request via Server Action.
  *
+ * Human-in-the-loop only — there is no auto-merge path. The user always
+ * reviews the diff before a Change Request is created.
  */
 export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps) {
   const router = useRouter()
@@ -188,20 +190,16 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
                 />
               </div>
 
-              {isStreaming ? (
-                <ThinkingIndicator label="Connecting to the model" />
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Source of truth
-                  </label>
-                  <div className="bg-background border border-border rounded-lg p-3 max-h-40 overflow-y-auto">
-                    <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                      {document.content.trim()}
-                    </pre>
-                  </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Source of truth
+                </label>
+                <div className="bg-background border border-border rounded-lg p-3 max-h-40 overflow-y-auto">
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                    {document.content.trim()}
+                  </pre>
                 </div>
-              )}
+              </div>
             </>
           ) : (
             <ProposalView
@@ -307,16 +305,6 @@ function ProposalView({
         <div className="text-foreground">{instructions}</div>
       </div>
 
-      {isStreaming && (
-        <ThinkingIndicator
-          label={
-            proposals.length === 0
-              ? 'Analyzing the document and planning edits'
-              : `Proposing edits (${proposals.length} so far)`
-          }
-        />
-      )}
-
       {proposals.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -399,30 +387,6 @@ function ProposalView({
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-/**
- * Persistent "working" indicator shown while the model streams. Tool-call
- * generation can pause for a few seconds between the preamble text and the
- * first edit, so this keeps it obvious that work is in flight.
- */
-function ThinkingIndicator({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-md border border-purple-500/30 bg-purple-500/5 px-3 py-2.5">
-      <Bot className="w-4 h-4 text-purple-400 shrink-0 animate-pulse" />
-      <span className="text-sm text-purple-200">{label}</span>
-      <span className="ml-0.5 flex items-end gap-1" aria-hidden>
-        {[0, 150, 300].map((delay) => (
-          <span
-            key={delay}
-            className="inline-block w-1.5 h-1.5 rounded-full bg-purple-400 animate-bounce"
-            style={{ animationDelay: `${delay}ms` }}
-          />
-        ))}
-      </span>
-      <span className="sr-only">Working…</span>
     </div>
   )
 }
