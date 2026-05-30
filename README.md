@@ -57,7 +57,7 @@ flowchart LR
 | Same-request freshness on merge | Server Actions call `updateTag('document')`, `updateTag('commits:...')`, `updateTag('change-request:...')` so the merged doc refreshes in the same request |
 | Parallel routes for the changes pane | [`app/(app)/changes/@list/`](app/(app)/changes/@list) — the sidebar list stays mounted across PR navigation |
 | URL-driven filter | [`components/change-request-filter.tsx`](components/change-request-filter.tsx) writes `?filter=…&q=…`; only the `@list` Suspense boundary re-streams |
-| Per-PR SEO + OG | `generateMetadata` in [`app/(app)/changes/[crId]/page.tsx`](<app/(app)/changes/[crId]/page.tsx>) reuses the cached `getChangeRequest` |
+| Per-PR SEO metadata | `generateMetadata` in [`app/(app)/changes/[crId]/page.tsx`](<app/(app)/changes/[crId]/page.tsx>) sets a per-PR title and description |
 
 ### Mutations
 
