@@ -387,6 +387,13 @@ function ProposalView({
         </div>
       )}
 
+      {!isStreaming && proposals.length === 0 && (
+        <div className="rounded-md border border-border bg-secondary/20 p-3 text-sm text-muted-foreground">
+          No edits were proposed for that instruction. Try something more specific, then hit{' '}
+          <span className="text-foreground font-medium">Start over</span>.
+        </div>
+      )}
+
       {!isStreaming && proposals.length > 0 && (
         <>
           <div className="space-y-2">

@@ -83,6 +83,8 @@ export async function POST(req: Request) {
     system: `You are a meticulous document editor. The user has a source-of-truth markdown document titled "${document.title}" and a set of edit instructions. Your job is to propose targeted edits to that document by emitting tool calls. Never rewrite the document wholesale.
 
 Rules:
+- Always propose at least one concrete edit using the tools. This is a one-shot flow — the user cannot reply, so NEVER ask clarifying questions or request more information.
+- If the instruction is vague or open-ended, make reasonable best-effort improvements (clarity, concision, grammar, structure, impact) and state your interpretation in the summary.
 - Use the proposeReplacement tool when you want to change an existing substring. The "find" value must match the source document exactly.
 - Use the proposeInsertion tool when you want to add new content after a heading.
 - Each tool call must include a one-sentence rationale that explains why the edit improves the document.
