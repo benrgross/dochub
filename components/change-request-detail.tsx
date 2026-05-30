@@ -167,12 +167,15 @@ export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeReques
               icon={<AlignJustify className="w-3.5 h-3.5" />}
               label="Unified"
             />
-            <ViewModeBtn
-              active={viewMode === 'split'}
-              onClick={() => setViewMode('split')}
-              icon={<SplitSquareVertical className="w-3.5 h-3.5" />}
-              label="Split"
-            />
+            {/* Split view is cramped on phones — only offer it at sm+. */}
+            <span className="hidden sm:contents">
+              <ViewModeBtn
+                active={viewMode === 'split'}
+                onClick={() => setViewMode('split')}
+                icon={<SplitSquareVertical className="w-3.5 h-3.5" />}
+                label="Split"
+              />
+            </span>
           </div>
         </div>
 

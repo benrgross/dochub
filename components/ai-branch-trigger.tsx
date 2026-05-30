@@ -22,9 +22,13 @@ export function AIBranchTrigger({ document }: AIBranchTriggerProps) {
   const [isOpen, setIsOpen] = useState(false)
   return (
     <>
-      <Button onClick={() => setIsOpen(true)} className="bg-purple-600 hover:bg-purple-700">
-        <Bot className="w-4 h-4 mr-2" />
-        AI Branch
+      <Button
+        onClick={() => setIsOpen(true)}
+        aria-label="AI Branch"
+        className="bg-purple-600 hover:bg-purple-700"
+      >
+        <Bot className="w-4 h-4 sm:mr-2" />
+        <span className="hidden sm:inline">AI Branch</span>
       </Button>
       {isOpen && (
         <AIBranchModal document={document} isOpen onClose={() => setIsOpen(false)} />

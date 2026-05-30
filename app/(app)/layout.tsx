@@ -22,23 +22,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
-        <div className="flex items-center gap-6">
-          <Link href="/document" className="flex items-center gap-2">
+      <header className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b border-border bg-card">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <Link href="/document" className="flex items-center gap-2 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-[oklch(0.65_0.15_145)] flex items-center justify-center">
               <GitBranch className="w-4 h-4 text-[oklch(0.12_0.01_240)]" />
             </div>
             <span className="text-lg font-semibold text-foreground">DocHub</span>
           </Link>
           {doc && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="hidden sm:flex items-center gap-2 text-sm min-w-0">
               <span className="text-muted-foreground">/</span>
-              <span className="text-foreground font-medium">{doc.title}</span>
+              <span className="text-foreground font-medium truncate">{doc.title}</span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Suspense fallback={<PersonaPickerSkeleton />}>
             <PersonaPickerServer />
           </Suspense>

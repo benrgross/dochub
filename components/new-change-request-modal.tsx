@@ -28,10 +28,11 @@ export function NewChangeRequestModal({ document }: NewChangeRequestModalProps) 
       <Button
         onClick={() => setIsOpen(true)}
         size="sm"
+        aria-label="New Change Request"
         className="bg-[oklch(0.65_0.15_145)] text-[oklch(0.12_0.01_240)] hover:bg-[oklch(0.60_0.15_145)]"
       >
-        <Plus className="w-4 h-4 mr-1.5" />
-        New Change Request
+        <Plus className="w-4 h-4 sm:mr-1.5" />
+        <span className="hidden sm:inline">New Change Request</span>
       </Button>
     )
   }

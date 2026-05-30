@@ -80,17 +80,17 @@ export function DiffViewer({ original, modified, viewMode = 'unified' }: DiffVie
                     : 'hover:bg-secondary/30'
                 }
               >
-                <td className="w-12 px-2 py-0.5 text-right text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
+                <td className="w-12 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                   {line.oldLineNumber || ''}
                 </td>
-                <td className="w-12 px-2 py-0.5 text-right text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
+                <td className="w-12 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                   {line.newLineNumber || ''}
                 </td>
-                <td className="w-6 px-2 py-0.5 text-center select-none text-xs">
+                <td className="w-6 px-2 py-0.5 text-center align-top select-none text-xs">
                   {line.type === 'add' && <span className="text-[oklch(0.75_0.12_145)]">+</span>}
                   {line.type === 'remove' && <span className="text-[oklch(0.75_0.12_25)]">-</span>}
                 </td>
-                <td className="px-4 py-0.5 whitespace-pre">
+                <td className="px-4 py-0.5 align-top whitespace-pre-wrap wrap-break-word">
                   <span
                     className={
                       line.type === 'add'
@@ -178,7 +178,7 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
                   <td className="w-10 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                     {line?.oldLineNumber || ''}
                   </td>
-                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap break-words">
+                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap wrap-break-word">
                     <span
                       className={
                         line?.type === 'remove'
@@ -216,7 +216,7 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
                   <td className="w-10 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                     {line?.newLineNumber || ''}
                   </td>
-                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap break-words">
+                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap wrap-break-word">
                     <span
                       className={
                         line?.type === 'add'
