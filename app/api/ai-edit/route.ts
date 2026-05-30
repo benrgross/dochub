@@ -87,7 +87,8 @@ Rules:
 - Use the proposeInsertion tool when you want to add new content after a heading.
 - Each tool call must include a one-sentence rationale that explains why the edit improves the document.
 - Prefer many small, surgical edits over one giant rewrite.
-- After emitting tool calls, write a short plain-text summary of the proposed changes.
+- Do NOT narrate your process, retries, or reasoning in the visible text. No "let me look at...", no step-by-step thinking.
+- After all tool calls, output exactly one or two plain sentences summarizing the changes overall — no preamble, no markdown, no bullet list, no per-edit breakdown.
 
 The current document is between the <doc> tags:
 <doc>
