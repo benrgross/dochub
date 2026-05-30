@@ -305,6 +305,15 @@ function ProposalView({
         <div className="text-foreground">{instructions}</div>
       </div>
 
+      {summary && (
+        <div className="border border-border bg-background rounded-md p-3 text-sm">
+          <div className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide">
+            Summary
+          </div>
+          <p className="text-foreground/90 whitespace-pre-wrap">{summary}</p>
+        </div>
+      )}
+
       {/* Fallback in the edits slot: shows only while streaming before the
           first tool call arrives, then is replaced by the real cards as they
           stream in. Leaves the preamble summary below untouched. */}
@@ -370,15 +379,6 @@ function ProposalView({
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {summary && (
-        <div className="border border-border bg-background rounded-md p-3 text-sm">
-          <div className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide">
-            Summary
-          </div>
-          <p className="text-foreground/90 whitespace-pre-wrap">{summary}</p>
         </div>
       )}
 
