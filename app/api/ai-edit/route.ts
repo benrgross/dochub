@@ -67,6 +67,19 @@ export async function POST(req: Request) {
   const result = streamText({
     model,
     stopWhen: stepCountIs(8),
+    // Usage telemetry: fires after the stream completes, off the response
+    // path. Lands in Runtime Logs for per-feature cost attribution.
+    onFinish: ({ usage, finishReason }) => {
+      console.log(
+        JSON.stringify({
+          event: 'ai_branch_generated',
+          model,
+          finishReason,
+          usage,
+          at: new Date().toISOString(),
+        }),
+      )
+    },
     system: `You are a meticulous document editor. The user has a source-of-truth markdown document titled "${document.title}" and a set of edit instructions. Your job is to propose targeted edits to that document by emitting tool calls. Never rewrite the document wholesale.
 
 Rules:

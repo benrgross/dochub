@@ -1,6 +1,7 @@
 'use server'
 
 import { z } from 'zod'
+import { after } from 'next/server'
 import { revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -166,6 +167,23 @@ export async function mergeChangeRequest(input: { id: string }): Promise<FormAct
     revalidatePath('/document')
     revalidatePath('/changes')
     revalidatePath('/history')
+
+    // Audit telemetry runs after the response flushes (Fluid Compute keeps
+    // the function alive via after()/waitUntil), so the merge returns
+    // immediately and the structured log lands in Runtime Logs out of band.
+    after(() => {
+      console.log(
+        JSON.stringify({
+          event: 'cr_merged',
+          changeRequestId: id,
+          documentId: cr.document_id,
+          author,
+          aiAuthored: cr.ai_metadata != null,
+          at: new Date().toISOString(),
+        }),
+      )
+    })
+
     return { ok: true }
   } catch (error) {
     return actionError(error, 'Failed to merge')
