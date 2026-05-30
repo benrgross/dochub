@@ -33,13 +33,19 @@ const RequestSchema = z.object({
 })
 
 export async function POST(req: Request) {
-  // BotID: invisible bot detection (no CAPTCHA). Blocks scripted abuse of
-  // this public, cost-bearing endpoint. Fails OPEN on any error so a BotID
-  // misconfiguration can never lock out real users.
+  // BotID: invisible bot detection (no CAPTCHA) for this public, cost-bearing
+  // endpoint. Rolled out in monitor mode by default — we log the verdict but
+  // only block when BOTID_ENFORCE=true. This is the safe rollout pattern:
+  // observe for false positives first, then enforce once confident. Always
+  // fails OPEN on error so a misconfiguration can't lock out real users.
   try {
     const verdict = await checkBotId()
     if ('isBot' in verdict && verdict.isBot) {
-      return Response.json({ error: 'Automated access is not allowed.' }, { status: 403 })
+      const enforce = process.env.BOTID_ENFORCE === 'true'
+      console.warn('[botid] bot verdict', { enforce })
+      if (enforce) {
+        return Response.json({ error: 'Automated access is not allowed.' }, { status: 403 })
+      }
     }
   } catch (error) {
     console.error('[botid] check failed — allowing request', error)
