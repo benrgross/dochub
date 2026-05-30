@@ -5,6 +5,7 @@ import {
   stepCountIs,
   type UIMessage,
 } from 'ai'
+import { checkBotId } from 'botid/server'
 import { isAiBranchEnabled, resolveAiModel } from '@/lib/flags'
 import { DEFAULT_MODEL_ID, isValidModelId } from '@/lib/models'
 
@@ -32,6 +33,18 @@ const RequestSchema = z.object({
 })
 
 export async function POST(req: Request) {
+  // BotID: invisible bot detection (no CAPTCHA). Blocks scripted abuse of
+  // this public, cost-bearing endpoint. Fails OPEN on any error so a BotID
+  // misconfiguration can never lock out real users.
+  try {
+    const verdict = await checkBotId()
+    if ('isBot' in verdict && verdict.isBot) {
+      return Response.json({ error: 'Automated access is not allowed.' }, { status: 403 })
+    }
+  } catch (error) {
+    console.error('[botid] check failed — allowing request', error)
+  }
+
   if (!(await isAiBranchEnabled())) {
     return Response.json({ error: 'AI Branch is disabled' }, { status: 503 })
   }
