@@ -156,13 +156,13 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
         </span>
       </div>
       
-      <div className="flex overflow-x-auto custom-scrollbar">
+      <div className="flex">
         {/* Left side (original) */}
         <div className="flex-1 border-r border-border min-w-0">
           <div className="px-3 py-1.5 bg-secondary/30 text-xs text-muted-foreground border-b border-border">
             Original
           </div>
-          <table className="w-full border-collapse">
+          <table className="w-full table-fixed border-collapse">
             <tbody>
               {leftLines.map((line, index) => (
                 <tr
@@ -175,10 +175,10 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
                       : 'hover:bg-secondary/30'
                   }
                 >
-                  <td className="w-10 px-2 py-0.5 text-right text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
+                  <td className="w-10 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                     {line?.oldLineNumber || ''}
                   </td>
-                  <td className="px-4 py-0.5 whitespace-pre overflow-hidden text-ellipsis">
+                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap break-words">
                     <span
                       className={
                         line?.type === 'remove'
@@ -200,7 +200,7 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
           <div className="px-3 py-1.5 bg-secondary/30 text-xs text-muted-foreground border-b border-border">
             Modified
           </div>
-          <table className="w-full border-collapse">
+          <table className="w-full table-fixed border-collapse">
             <tbody>
               {rightLines.map((line, index) => (
                 <tr
@@ -213,10 +213,10 @@ function SplitView({ diffLines, additions, deletions }: { diffLines: DiffLine[],
                       : 'hover:bg-secondary/30'
                   }
                 >
-                  <td className="w-10 px-2 py-0.5 text-right text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
+                  <td className="w-10 px-2 py-0.5 text-right align-top text-[oklch(0.45_0_0)] select-none border-r border-border/50 text-xs">
                     {line?.newLineNumber || ''}
                   </td>
-                  <td className="px-4 py-0.5 whitespace-pre overflow-hidden text-ellipsis">
+                  <td className="px-4 py-0.5 align-top whitespace-pre-wrap break-words">
                     <span
                       className={
                         line?.type === 'add'

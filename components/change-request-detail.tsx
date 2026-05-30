@@ -132,7 +132,7 @@ export function ChangeRequestDetail({ changeRequest, currentUser }: ChangeReques
           Description
         </button>
         {showDescription && changeRequest.description && (
-          <p className="mt-2 text-sm text-foreground/80 bg-secondary/30 p-3 rounded-md whitespace-pre-wrap">
+          <p className="mt-2 text-sm text-foreground/80 bg-secondary/30 p-3 rounded-md whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
             {changeRequest.description}
           </p>
         )}
