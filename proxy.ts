@@ -61,11 +61,13 @@ function applySecurityHeaders(res: NextResponse): void {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+      // 'blob:' + worker-src allow BotID's client challenge worker to run.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://va.vercel-scripts.com",
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self' https://*.supabase.co https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      "connect-src 'self' blob: https://*.supabase.co https://va.vercel-scripts.com https://vitals.vercel-insights.com",
       "frame-ancestors 'none'",
     ].join('; '),
   )
