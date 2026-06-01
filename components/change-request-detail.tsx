@@ -60,7 +60,7 @@ export function ChangeRequestDetail({
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               {isAi && <Bot className="w-5 h-5 text-purple-400" />}
@@ -75,7 +75,7 @@ export function ChangeRequestDetail({
           </div>
 
           {canActOn && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto sm:shrink-0">
               <Button
                 variant="outline"
                 size="sm"
