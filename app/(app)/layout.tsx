@@ -7,7 +7,7 @@ import {
   PersonaPickerSkeleton,
 } from '@/components/chrome/persona-picker-server'
 import { NewChangeRequestModal } from '@/components/new-change-request-modal'
-import { AIBranchTrigger } from '@/components/ai-branch-trigger'
+import { AIBranchSlot, AIBranchSlotSkeleton } from '@/components/ai-branch-slot'
 import { WelcomeTourServer } from '@/components/tour/welcome-tour-server'
 import { TourTrigger } from '@/components/tour/tour-trigger'
 import { getPinnedDocument } from '@/app/_data/documents'
@@ -44,7 +44,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Suspense>
           {doc && (
             <>
-              <AIBranchTrigger document={doc} />
+              <Suspense fallback={<AIBranchSlotSkeleton />}>
+                <AIBranchSlot document={doc} />
+              </Suspense>
               <NewChangeRequestModal document={doc} />
             </>
           )}
