@@ -1,4 +1,4 @@
-import { defineHook, FatalError } from 'workflow'
+import { defineHook, FatalError, getWritable } from 'workflow'
 import { z } from 'zod'
 import { generateText, stepCountIs } from 'ai'
 import { revalidatePath, updateTag } from 'next/cache'
@@ -53,6 +53,22 @@ export type AiChangeRequestResult = {
   changeRequestId: string
   status: 'merged' | 'closed'
 }
+
+/**
+ * Coarse progress events written to the run's stream (namespace `progress`)
+ * so the UI can watch a durable run live — load → generate → propose →
+ * persist — instead of waiting blind. Read them out with
+ * `getRun(runId).getReadable({ namespace: 'progress' })`. Best-effort only:
+ * the stream is observational and never gates the actual work.
+ */
+export type ProgressEvent =
+  | { type: 'phase'; phase: 'loaded'; title: string }
+  | { type: 'phase'; phase: 'generating' }
+  | { type: 'proposals'; summary: string; items: Proposal[] }
+  | { type: 'phase'; phase: 'persisted'; changeRequestId: string }
+  | { type: 'error'; message: string }
+
+const PROGRESS_NAMESPACE = 'progress'
 
 export async function aiChangeRequestWorkflow(
   input: AiChangeRequestInput,
@@ -120,7 +136,11 @@ async function loadDocument(documentId: string): Promise<LoadedDoc> {
     .single()
 
   // A missing document is unrecoverable — don't burn retries on it.
-  if (error) throw new FatalError(`Document ${documentId} not found: ${error.message}`)
+  if (error) {
+    await emitProgress({ type: 'error', message: 'Document not found.' })
+    throw new FatalError(`Document ${documentId} not found: ${error.message}`)
+  }
+  await emitProgress({ type: 'phase', phase: 'loaded', title: data.title })
   return data as LoadedDoc
 }
 
@@ -136,6 +156,8 @@ async function generateProposal(
   modelId: string,
 ): Promise<GeneratedProposal> {
   'use step'
+
+  await emitProgress({ type: 'phase', phase: 'generating' })
 
   const result = await generateText({
     model: modelId,
@@ -244,17 +266,24 @@ The user's instructions are: ${instruction}`,
   }
 
   if (proposals.length === 0) {
-    throw new FatalError('The model proposed no applicable edits for that instruction.')
+    const message = 'The model proposed no applicable edits for that instruction.'
+    await emitProgress({ type: 'error', message })
+    throw new FatalError(message)
   }
 
   const proposedContent = applyProposals(doc.content, proposals)
   if (proposedContent === doc.content) {
-    throw new FatalError('Proposed edits produced no change to the document.')
+    const message = 'Proposed edits produced no change to the document.'
+    await emitProgress({ type: 'error', message })
+    throw new FatalError(message)
   }
+
+  const summary = result.text.trim() || 'AI-proposed edits.'
+  await emitProgress({ type: 'proposals', summary, items: proposals })
 
   return {
     proposedContent,
-    summary: result.text.trim() || 'AI-proposed edits.',
+    summary,
     aiMetadata: { model: modelId, instructions: instruction, toolCalls },
   }
 }
@@ -294,6 +323,7 @@ async function persistChangeRequest(input: PersistInput): Promise<string> {
   if (error) throw new Error(`Failed to create change request: ${error.message}`)
 
   revalidatePath('/changes')
+  await emitProgress({ type: 'phase', phase: 'persisted', changeRequestId: data.id as string })
   return data.id as string
 }
 
@@ -342,6 +372,23 @@ async function mergeApproved(changeRequestId: string, approver: string): Promise
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Append one progress event to the run's readable stream. Call only from
+ * inside `'use step'` functions (steps run exactly once, so the side effect
+ * isn't duplicated on replay). Releasing the writer lock flushes the chunk
+ * without closing the stream, so later steps keep appending to it. Swallows
+ * all errors — a failed telemetry write must never fail the real edit.
+ */
+async function emitProgress(event: ProgressEvent): Promise<void> {
+  try {
+    const writer = getWritable<string>({ namespace: PROGRESS_NAMESPACE }).getWriter()
+    await writer.write(`${JSON.stringify(event)}\n`)
+    writer.releaseLock()
+  } catch {
+    // Streaming is observational; ignore.
+  }
+}
 
 function countOccurrences(haystack: string, needle: string): number {
   if (!needle) return 0
