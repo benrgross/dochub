@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useOptimistic, useTransition, useActionState, startTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { DiffViewer } from './diff-viewer'
 import { Button } from '@/components/ui/button'
 import { formatDistanceToNow } from 'date-fns'
@@ -16,6 +17,7 @@ import {
   Clock,
   Bot,
   Loader2,
+  RotateCcw,
 } from 'lucide-react'
 import type { ChangeRequest, Comment } from '@/lib/types'
 import {
@@ -26,6 +28,7 @@ import {
 import { addComment } from '@/app/_actions/comments'
 import { type FormActionState } from '@/app/_actions/_helpers'
 import { useDraftStorage } from '@/hooks/use-draft-storage'
+import { resumeAiWorkflow } from '@/lib/ai-workflow-client'
 
 interface ChangeRequestDetailProps {
   changeRequest: ChangeRequest
@@ -43,9 +46,13 @@ export function ChangeRequestDetail({
   currentUser,
   summarySlot,
 }: ChangeRequestDetailProps) {
+  const router = useRouter()
   const [viewMode, setViewMode] = useState<'split' | 'unified'>('unified')
   const [showDescription, setShowDescription] = useState(true)
   const [isPending, startPendingTransition] = useTransition()
+  // Inline notes box for the "Request changes" (workflow regenerate) action.
+  const [showChangesNotes, setShowChangesNotes] = useState(false)
+  const [changesNotes, setChangesNotes] = useState('')
 
   const [optimisticComments, addOptimisticComment] = useOptimistic(
     changeRequest.comments,
@@ -83,6 +90,10 @@ export function ChangeRequestDetail({
                 onClick={() =>
                   startPendingTransition(async () => {
                     await closeChangeRequest({ id: changeRequest.id })
+                    // Also wake a durable workflow run waiting on this CR, if
+                    // any. 409 (no waiting run, e.g. a manual CR) is a no-op.
+                    const resumed = await resumeAiWorkflow(changeRequest.id, 'closed')
+                    if (resumed) router.refresh()
                   })
                 }
                 className="text-[oklch(0.75_0.12_25)] border-[oklch(0.35_0.08_25)] hover:bg-[oklch(0.25_0.08_25)]"
@@ -97,12 +108,32 @@ export function ChangeRequestDetail({
                   onClick={() =>
                     startPendingTransition(async () => {
                       await approveChangeRequest({ id: changeRequest.id })
+                      // For a workflow-backed CR, "approved" resumes the run,
+                      // which durably merges the doc. 409 = manual CR (no-op).
+                      const resumed = await resumeAiWorkflow(changeRequest.id, 'approved')
+                      if (resumed) router.refresh()
                     })
                   }
                   className="bg-[oklch(0.55_0.12_200)] text-white hover:bg-[oklch(0.50_0.12_200)]"
                 >
                   <CheckCircle2 className="w-4 h-4 mr-1.5" />
                   Approve
+                </Button>
+              )}
+              {/* Workflow-only "regenerate" path. For an AI CR backed by a
+                  durable run, this resumes it with the reviewer's notes so it
+                  produces a fresh revision. Toggles an inline notes box; the
+                  resume fires from there. Harmless on non-workflow CRs (409). */}
+              {isAi && isOpen && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => setShowChangesNotes((v) => !v)}
+                  className="text-[oklch(0.75_0.12_85)] border-[oklch(0.35_0.08_85)] hover:bg-[oklch(0.25_0.08_85)]"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                  Request changes
                 </Button>
               )}
               {isApproved && changeRequest.approvedBy && (
@@ -117,6 +148,11 @@ export function ChangeRequestDetail({
                 onClick={() =>
                   startPendingTransition(async () => {
                     await mergeChangeRequest({ id: changeRequest.id })
+                    // The server action already merged; resuming the workflow
+                    // (if one waits) just lets it finish — mergeApproved is
+                    // idempotent, so no double commit. 409 = manual CR (no-op).
+                    const resumed = await resumeAiWorkflow(changeRequest.id, 'approved')
+                    if (resumed) router.refresh()
                   })
                 }
                 className="bg-[oklch(0.65_0.15_145)] text-[oklch(0.12_0.01_240)] hover:bg-[oklch(0.60_0.15_145)]"
@@ -131,6 +167,61 @@ export function ChangeRequestDetail({
             </div>
           )}
         </div>
+
+        {isAi && isOpen && showChangesNotes && (
+          <div className="mt-3 space-y-2 rounded-md border border-border bg-secondary/20 p-3">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Request changes — feedback for the AI to address
+            </label>
+            <textarea
+              value={changesNotes}
+              onChange={(e) => setChangesNotes(e.target.value)}
+              rows={3}
+              placeholder="e.g., Keep the intro, but tighten the security section and add an example."
+              className="w-full resize-none rounded-md bg-background border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+                onClick={() => {
+                  setShowChangesNotes(false)
+                  setChangesNotes('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={isPending}
+                onClick={() =>
+                  startPendingTransition(async () => {
+                    const resumed = await resumeAiWorkflow(
+                      changeRequest.id,
+                      'changes',
+                      changesNotes.trim() || undefined,
+                    )
+                    setShowChangesNotes(false)
+                    setChangesNotes('')
+                    // A resumed run opens a fresh revision (a new CR); refresh
+                    // so the list/detail reflect it. 409 (no waiting run) is a
+                    // no-op — "Request changes" only applies to workflow CRs.
+                    if (resumed) router.refresh()
+                  })
+                }
+                className="bg-[oklch(0.55_0.12_85)] text-[oklch(0.12_0.01_240)] hover:bg-[oklch(0.50_0.12_85)]"
+              >
+                {isPending ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 mr-1.5" />
+                )}
+                Send & regenerate
+              </Button>
+            </div>
+          </div>
+        )}
 
         {changeRequest.description && (
           <>

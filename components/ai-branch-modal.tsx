@@ -15,6 +15,8 @@ import {
   ArrowRight,
   Plus,
   Replace,
+  Clock,
+  ExternalLink,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,6 +26,7 @@ import { ModelPickerPills } from '@/components/model-picker'
 import { DEFAULT_MODEL_ID, findModel } from '@/lib/models'
 import type { DocumentRow, AiMetadata, ToolCallRecord } from '@/lib/types'
 import { createChangeRequest } from '@/app/_actions/change-requests'
+import { queueAiChangeRequest } from '@/lib/ai-workflow-client'
 
 interface AIBranchModalProps {
   document: DocumentRow
@@ -58,6 +61,13 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID)
   const modelIdRef = useRef(modelId)
   modelIdRef.current = modelId
+
+  // Durable alternative to the live stream: queue a Vercel Workflow run that
+  // runs the propose → review → merge lifecycle headlessly. When set, we show
+  // the returned runId instead of the streaming proposal UI.
+  const [queuing, setQueuing] = useState(false)
+  const [queuedRunId, setQueuedRunId] = useState<string | null>(null)
+  const [queueError, setQueueError] = useState<string | null>(null)
 
   // Stabilize the transport so useChat doesn't bind to a stale closure of
   // `instructions`. Doc fields are static per session; the user's text
@@ -99,6 +109,31 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
   function handleReset() {
     setMessages([])
     setSubmitError(null)
+  }
+
+  // Queue the durable workflow instead of streaming. Uses the same instruction
+  // textarea + model picker; returns a runId to watch in the Vercel dashboard.
+  async function handleQueueDurable() {
+    if (!instructions.trim() || isStreaming || queuing) return
+    setQueueError(null)
+    setQueuing(true)
+    const result = await queueAiChangeRequest({
+      documentId: document.id,
+      instruction: instructions.trim(),
+      model: modelId,
+    })
+    setQueuing(false)
+    if (!result.ok) {
+      setQueueError(result.error)
+      return
+    }
+    setQueuedRunId(result.runId)
+  }
+
+  function handleQueueAnother() {
+    setQueuedRunId(null)
+    setQueueError(null)
+    setInstructions('')
   }
 
   function handleCreateBranch() {
@@ -147,6 +182,8 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
     setBranchName('')
     setMessages([])
     setSubmitError(null)
+    setQueuedRunId(null)
+    setQueueError(null)
     onClose()
   }
 
@@ -173,7 +210,9 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {!hasProposal ? (
+          {queuedRunId ? (
+            <QueuedView runId={queuedRunId} instructions={instructions} modelId={modelId} />
+          ) : !hasProposal ? (
             <>
               <div className="space-y-2">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -233,17 +272,52 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
               <span>{submitError}</span>
             </div>
           )}
+          {queueError && (
+            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{queueError}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
-          {!hasProposal ? (
+          {queuedRunId ? (
+            <>
+              <Button variant="ghost" onClick={handleQueueAnother}>
+                Queue another
+              </Button>
+              <Button onClick={handleClose} className="bg-purple-600 hover:bg-purple-700">
+                Done
+              </Button>
+            </>
+          ) : !hasProposal ? (
             <>
               <Button variant="ghost" onClick={handleClose}>
                 Cancel
               </Button>
+              {/* Durable, headless path: queue a Vercel Workflow run instead of
+                  streaming. Survives crashes/deploys; review happens later. */}
+              <Button
+                variant="outline"
+                onClick={handleQueueDurable}
+                disabled={!instructions.trim() || isStreaming || queuing}
+                title="Run as a durable Vercel Workflow — review and merge later"
+              >
+                {queuing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Queuing
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-4 h-4 mr-2" />
+                    Queue durable AI edit
+                  </>
+                )}
+              </Button>
               <Button
                 onClick={handleGenerate}
-                disabled={!instructions.trim() || isStreaming}
+                disabled={!instructions.trim() || isStreaming || queuing}
                 className="bg-purple-600 hover:bg-purple-700"
               >
                 {isStreaming ? (
@@ -281,6 +355,66 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
             </>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Shown after a durable run is queued. The workflow now runs the propose →
+ * review → merge lifecycle headlessly; we surface the runId and point the user
+ * at the Vercel dashboard, where each step is observable. When it lands, the
+ * resulting change request appears under Changes for human review.
+ */
+function QueuedView({
+  runId,
+  instructions,
+  modelId,
+}: {
+  runId: string
+  instructions: string
+  modelId: string
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-md border border-purple-500/30 bg-purple-500/10 p-4">
+        <div className="p-2 rounded-lg bg-purple-500/20 shrink-0">
+          <Clock className="w-5 h-5 text-purple-400" />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+            <CheckCircle2 className="w-4 h-4 text-[oklch(0.65_0.15_145)]" />
+            Durable AI edit queued
+          </div>
+          <p className="text-sm text-muted-foreground">
+            A Vercel Workflow is running this edit headlessly. When it proposes
+            changes, a change request will appear under{' '}
+            <span className="text-foreground font-medium">Changes</span> for review.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="text-xs text-muted-foreground uppercase tracking-wide">Run ID</div>
+        <code className="block bg-background border border-border rounded-md px-3 py-2 text-xs font-mono text-foreground break-all">
+          {runId}
+        </code>
+      </div>
+
+      <div className="flex items-start gap-2 rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+        <ExternalLink className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>
+          Track progress in the Vercel dashboard under{' '}
+          <span className="text-foreground font-medium">
+            Observability → Workflows
+          </span>
+          . Each step (load → generate → persist → review → merge) is logged there.
+        </span>
+      </div>
+
+      <div className="bg-muted/40 rounded-md p-3 text-sm">
+        <div className="text-xs text-muted-foreground mb-1">Instructions · {modelId}</div>
+        <div className="text-foreground whitespace-pre-wrap">{instructions}</div>
       </div>
     </div>
   )
