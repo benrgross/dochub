@@ -1,8 +1,10 @@
 import { defineHook, FatalError } from 'workflow'
 import { z } from 'zod'
 import { generateText, stepCountIs } from 'ai'
+import { revalidatePath, updateTag } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { applyProposals, type Proposal } from '@/lib/proposals'
+import { tag } from '@/lib/cache-tags'
 import type { AiMetadata, ToolCallRecord } from '@/lib/types'
 
 /**
@@ -290,6 +292,8 @@ async function persistChangeRequest(input: PersistInput): Promise<string> {
     .single()
 
   if (error) throw new Error(`Failed to create change request: ${error.message}`)
+
+  revalidatePath('/changes')
   return data.id as string
 }
 
@@ -326,6 +330,15 @@ async function mergeApproved(changeRequestId: string, approver: string): Promise
     content_snapshot: cr.proposed_content,
   })
   if (commitErr) throw new Error(`Failed to write commit: ${commitErr.message}`)
+
+  // Invalidate caches to ensure UI reflects merged state
+  updateTag(tag.document())
+  updateTag(tag.document(cr.document_id))
+  updateTag(tag.commits(cr.document_id))
+  updateTag(tag.changeRequest(changeRequestId))
+  revalidatePath('/document')
+  revalidatePath('/changes')
+  revalidatePath('/history')
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
