@@ -184,8 +184,8 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
             <div>
               <h2 className="text-lg font-semibold text-foreground">AI Branch</h2>
               <p className="text-sm text-muted-foreground">
-                Pick a model. A durable workflow proposes structured edits — humans
-                review and merge.
+                Describe the change you want. The AI drafts it as a reviewable
+                proposal — you approve and merge.
               </p>
             </div>
           </div>
@@ -269,11 +269,11 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
 }
 
 const PHASE_STEPS: { key: Phase; label: string }[] = [
-  { key: 'starting', label: 'Starting durable run' },
-  { key: 'loaded', label: 'Loaded document' },
-  { key: 'generating', label: 'Generating proposal' },
-  { key: 'proposed', label: 'Proposed edits' },
-  { key: 'opening', label: 'Opening change request' },
+  { key: 'starting', label: 'Getting started' },
+  { key: 'loaded', label: 'Reading your document' },
+  { key: 'generating', label: 'Drafting changes' },
+  { key: 'proposed', label: 'Reviewing proposed edits' },
+  { key: 'opening', label: 'Opening your change request' },
 ]
 
 const PHASE_ORDER: Phase[] = ['starting', 'loaded', 'generating', 'proposed', 'opening']
@@ -370,8 +370,8 @@ function ProgressView({
 
       {runId && (
         <p className="text-[11px] text-muted-foreground">
-          Run <code className="font-mono">{runId}</code> · also observable in Vercel →
-          Observability → Workflows.
+          You can close this anytime — your edit keeps working in the background
+          and will appear under Changes when it&apos;s ready.
         </p>
       )}
     </div>
