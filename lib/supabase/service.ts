@@ -1,6 +1,5 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
-import { getSupabaseConfig } from './config'
 
 /**
  * Non-cookie-bound Supabase client used by cached read functions in
@@ -10,6 +9,9 @@ import { getSupabaseConfig } from './config'
  * `lib/supabase/server.ts`.
  */
 export function createServiceClient() {
-  const { url, anonKey } = getSupabaseConfig()
-  return createClient(url, anonKey, { auth: { persistSession: false } })
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } },
+  )
 }

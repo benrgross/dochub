@@ -135,10 +135,12 @@ async function loadDocument(documentId: string): Promise<LoadedDoc> {
     .eq('id', documentId)
     .single()
 
-  // A missing document is unrecoverable — don't burn retries on it.
+  // A missing document is unrecoverable — don't burn retries on it. Surface
+  // the real Supabase error (not a blanket "not found"): the row genuinely
+  // being absent and a misconfigured/empty database read very differently.
   if (error) {
-    await emitProgress({ type: 'error', message: 'Document not found.' })
-    throw new FatalError(`Document ${documentId} not found: ${error.message}`)
+    await emitProgress({ type: 'error', message: `Could not load the document: ${error.message}` })
+    throw new FatalError(`Failed to load document ${documentId}: ${error.message}`)
   }
   await emitProgress({ type: 'phase', phase: 'loaded', title: data.title })
   return data as LoadedDoc
