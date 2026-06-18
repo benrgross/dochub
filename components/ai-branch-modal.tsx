@@ -32,11 +32,21 @@ interface AIBranchModalProps {
 type ProgressEvent =
   | { type: 'phase'; phase: 'loaded'; title: string }
   | { type: 'phase'; phase: 'generating' }
-  | { type: 'proposals'; summary: string; items: Proposal[] }
+  | { type: 'drafting'; index: number }
+  | { type: 'proposal'; item: Proposal }
+  | { type: 'summary-delta'; delta: string }
   | { type: 'phase'; phase: 'persisted'; changeRequestId: string }
   | { type: 'error'; message: string }
 
-type Phase = 'idle' | 'starting' | 'loaded' | 'generating' | 'proposed' | 'opening' | 'error'
+type Phase =
+  | 'idle'
+  | 'starting'
+  | 'loaded'
+  | 'generating'
+  | 'proposed'
+  | 'opening'
+  | 'done'
+  | 'error'
 
 /**
  * AI Branch flow (durable).
@@ -47,11 +57,12 @@ type Phase = 'idle' | 'starting' | 'loaded' | 'generating' | 'proposed' | 'openi
  *   start run → load document → generate proposal → (edits stream in) → persist
  *
  * The workflow creates the change request itself and then pauses for human
- * review; the moment it persists, we navigate to that change request's page,
- * where the diff and the Approve / Request-changes / Close actions live (those
- * resume the same run). Because the run is durable, closing this modal — or
- * losing the connection — doesn't stop it: the change request still lands under
- * Changes. This replaces the old in-browser streaming flow.
+ * review. When it persists, we don't auto-navigate — the modal stays open
+ * showing the streamed edits + summary with a "View change request" button,
+ * so the user controls the hand-off to the diff/review page (which resumes
+ * this same run). Because the run is durable, closing this modal — or losing
+ * the connection — doesn't stop it: the change request still lands under
+ * Changes.
  */
 export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps) {
   const router = useRouter()
@@ -60,18 +71,22 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [proposals, setProposals] = useState<Proposal[]>([])
+  const [draftingCount, setDraftingCount] = useState(0)
   const [summary, setSummary] = useState('')
   const [runId, setRunId] = useState<string | null>(null)
+  const [changeRequestId, setChangeRequestId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const isRunning = phase !== 'idle' && phase !== 'error'
+  const isRunning = phase !== 'idle' && phase !== 'error' && phase !== 'done'
 
   async function handleGenerate() {
     if (!instructions.trim() || isRunning) return
     setError(null)
     setProposals([])
+    setDraftingCount(0)
     setSummary('')
     setRunId(null)
+    setChangeRequestId(null)
     setPhase('starting')
 
     const started = await queueAiChangeRequest({
@@ -86,9 +101,9 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
     }
     setRunId(started.runId)
 
-    // Stream coarse progress. If this connection drops the run keeps going
-    // durably — we just lose the live view and fall back to a hint.
-    let navigated = false
+    // Stream progress. If this connection drops the run keeps going durably —
+    // we just lose the live view and fall back to a hint.
+    let completed = false
     try {
       const res = await fetch(
         `/api/ai-change-request/stream?runId=${encodeURIComponent(started.runId)}`,
@@ -116,34 +131,42 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
           if (evt.type === 'error') {
             setError(evt.message)
             setPhase('error')
-          } else if (evt.type === 'proposals') {
-            setProposals(evt.items)
-            setSummary(evt.summary)
-            setPhase('proposed')
+          } else if (evt.type === 'drafting') {
+            // The model started writing an edit — show a live indicator while
+            // its content streams in.
+            const index = evt.index
+            setDraftingCount((prev) => Math.max(prev, index))
+          } else if (evt.type === 'proposal') {
+            // Each edit streams in the instant the model finalizes it.
+            const item = evt.item
+            setProposals((prev) => [...prev, item])
+          } else if (evt.type === 'summary-delta') {
+            // Summary text types in once the edits are drafted.
+            const delta = evt.delta
+            setSummary((prev) => prev + delta)
+            setPhase((p) => (p === 'generating' ? 'proposed' : p))
           } else if (evt.phase === 'loaded') {
             setPhase('loaded')
           } else if (evt.phase === 'generating') {
             setPhase('generating')
           } else if (evt.phase === 'persisted') {
-            // The change request now exists — hand off to its detail page,
-            // where review/merge resume this same durable run.
-            navigated = true
-            setPhase('opening')
-            const id = evt.changeRequestId
-            handleClose()
-            router.push(`/changes/${id}`)
-            return
+            // The change request now exists. Don't auto-navigate — let the user
+            // review the streamed result and click through when ready. The run
+            // is paused on its review hook regardless.
+            completed = true
+            setChangeRequestId(evt.changeRequestId)
+            setPhase('done')
           }
         }
       }
       // Stream ended without persisting (e.g. the run errored). If we didn't
       // already surface an error event, show a generic one.
-      if (!navigated) {
+      if (!completed) {
         setPhase((p) => (p === 'error' ? p : 'error'))
         setError((e) => e ?? 'The run ended before a change request was created.')
       }
     } catch {
-      if (!navigated) {
+      if (!completed) {
         setError(
           'Lost the live connection — but the edit is still running durably. ' +
             'It will appear under Changes shortly.',
@@ -153,20 +176,31 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
     }
   }
 
+  function handleView() {
+    if (!changeRequestId) return
+    const id = changeRequestId
+    handleClose()
+    router.push(`/changes/${id}`)
+  }
+
   function handleRetry() {
     setPhase('idle')
     setProposals([])
+    setDraftingCount(0)
     setSummary('')
     setError(null)
     setRunId(null)
+    setChangeRequestId(null)
   }
 
   function handleClose() {
     setInstructions('')
     setPhase('idle')
     setProposals([])
+    setDraftingCount(0)
     setSummary('')
     setRunId(null)
+    setChangeRequestId(null)
     setError(null)
     onClose()
   }
@@ -231,7 +265,13 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
               </div>
             </>
           ) : (
-            <ProgressView phase={phase} proposals={proposals} summary={summary} runId={runId} />
+            <ProgressView
+              phase={phase}
+              proposals={proposals}
+              draftingCount={draftingCount}
+              summary={summary}
+              runId={runId}
+            />
           )}
 
           {error && (
@@ -243,7 +283,17 @@ export function AIBranchModal({ document, isOpen, onClose }: AIBranchModalProps)
         </div>
 
         <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
-          {isRunning ? (
+          {phase === 'done' ? (
+            <>
+              <Button variant="ghost" onClick={handleClose}>
+                Close
+              </Button>
+              <Button onClick={handleView} className="bg-purple-600 hover:bg-purple-700">
+                View change request
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </>
+          ) : isRunning ? (
             <Button variant="ghost" onClick={handleClose}>
               Run in background
             </Button>
@@ -273,7 +323,7 @@ const PHASE_STEPS: { key: Phase; label: string }[] = [
   { key: 'loaded', label: 'Reading your document' },
   { key: 'generating', label: 'Drafting changes' },
   { key: 'proposed', label: 'Reviewing proposed edits' },
-  { key: 'opening', label: 'Opening your change request' },
+  { key: 'opening', label: 'Creating change request' },
 ]
 
 const PHASE_ORDER: Phase[] = ['starting', 'loaded', 'generating', 'proposed', 'opening']
@@ -281,15 +331,22 @@ const PHASE_ORDER: Phase[] = ['starting', 'loaded', 'generating', 'proposed', 'o
 function ProgressView({
   phase,
   proposals,
+  draftingCount,
   summary,
   runId,
 }: {
   phase: Phase
   proposals: Proposal[]
+  draftingCount: number
   summary: string
   runId: string | null
 }) {
-  const currentIdx = PHASE_ORDER.indexOf(phase)
+  // When the run is done, every step is complete.
+  const currentIdx = phase === 'done' ? PHASE_ORDER.length : PHASE_ORDER.indexOf(phase)
+  // An edit is mid-draft when the model has started more edits than have
+  // finalized and we're still generating — drives the live "drafting…" row.
+  const isDrafting =
+    (phase === 'generating' || phase === 'proposed') && draftingCount > proposals.length
 
   return (
     <div className="space-y-4">
@@ -368,7 +425,14 @@ function ProgressView({
         </ul>
       )}
 
-      {runId && (
+      {isDrafting && (
+        <div className="flex items-center gap-2 border border-dashed border-border bg-background/50 rounded-md p-3 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin text-purple-400 shrink-0" />
+          <span>Drafting edit {proposals.length + 1}…</span>
+        </div>
+      )}
+
+      {runId && phase !== 'done' && (
         <p className="text-[11px] text-muted-foreground">
           You can close this anytime — your edit keeps working in the background
           and will appear under Changes when it&apos;s ready.

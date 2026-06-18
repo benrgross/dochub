@@ -1,6 +1,6 @@
 import { defineHook, FatalError, getWritable } from 'workflow'
 import { z } from 'zod'
-import { generateText, stepCountIs } from 'ai'
+import { streamText, stepCountIs } from 'ai'
 import { revalidatePath, updateTag } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/service'
 import { applyProposals, type Proposal } from '@/lib/proposals'
@@ -64,7 +64,14 @@ export type AiChangeRequestResult = {
 export type ProgressEvent =
   | { type: 'phase'; phase: 'loaded'; title: string }
   | { type: 'phase'; phase: 'generating' }
-  | { type: 'proposals'; summary: string; items: Proposal[] }
+  // The model has *started* emitting the Nth edit (before its args finish).
+  // Lets the UI show a live "drafting…" indicator during generation instead
+  // of a blank spinner until everything resolves at once.
+  | { type: 'drafting'; index: number }
+  // One accepted edit, emitted live the moment its tool result resolves.
+  | { type: 'proposal'; item: Proposal }
+  // Incremental summary text, streamed as the model writes it.
+  | { type: 'summary-delta'; delta: string }
   | { type: 'phase'; phase: 'persisted'; changeRequestId: string }
   | { type: 'error'; message: string }
 
@@ -161,7 +168,7 @@ async function generateProposal(
 
   await emitProgress({ type: 'phase', phase: 'generating' })
 
-  const result = await generateText({
+  const result = streamText({
     model: modelId,
     stopWhen: stepCountIs(8),
     system: `You are a meticulous document editor. The user has a source-of-truth markdown document titled "${doc.title}" and a set of edit instructions. Your job is to propose targeted edits to that document by emitting tool calls. Never rewrite the document wholesale.
@@ -173,6 +180,7 @@ Rules:
 - Use the proposeInsertion tool when you want to add new content after a heading.
 - Each tool call must include a one-sentence rationale that explains why the edit improves the document.
 - Prefer many small, surgical edits over one giant rewrite.
+- Do NOT narrate your process, retries, or reasoning in the visible text. No "let me look at...", no step-by-step thinking.
 - After all tool calls, output exactly one or two plain sentences summarizing the changes overall — no preamble, no markdown, no bullet list.
 
 The current document is between the <doc> tags:
@@ -226,45 +234,91 @@ The user's instructions are: ${instruction}`,
     },
   })
 
-  // Collect accepted proposals from successful tool results across every step.
+  // Consume the stream live: forward each accepted edit to the run's progress
+  // channel the instant its tool result resolves, and stream summary text as
+  // the model writes it. The modal renders these incrementally, so the user
+  // watches edits appear instead of waiting for one batched result. We hold a
+  // single writer for the whole stream rather than re-acquiring it per chunk.
   const proposals: Proposal[] = []
   const toolCalls: ToolCallRecord[] = []
-  for (const step of result.steps) {
-    for (const tr of step.toolResults) {
-      const output = tr.output as
-        | { ok: true; find?: string; replace?: string; afterHeading?: string; content?: string; rationale: string }
-        | { ok: false; reason: string }
-      if (!output?.ok) continue
-      if (tr.toolName === 'proposeReplacement' && output.find != null && output.replace != null) {
-        proposals.push({
-          kind: 'replacement',
-          find: output.find,
-          replace: output.replace,
-          rationale: output.rationale,
-        })
-        toolCalls.push({
-          name: 'proposeReplacement',
-          input: { find: output.find, replace: output.replace },
-          rationale: output.rationale,
-        })
-      } else if (
-        tr.toolName === 'proposeInsertion' &&
-        output.afterHeading != null &&
-        output.content != null
-      ) {
-        proposals.push({
-          kind: 'insertion',
-          afterHeading: output.afterHeading,
-          content: output.content,
-          rationale: output.rationale,
-        })
-        toolCalls.push({
-          name: 'proposeInsertion',
-          input: { afterHeading: output.afterHeading, content: output.content },
-          rationale: output.rationale,
-        })
+  let summaryBuffer = ''
+  let draftIndex = 0
+
+  const writer = getWritable<string>({ namespace: PROGRESS_NAMESPACE }).getWriter()
+  try {
+    for await (const part of result.fullStream) {
+      if (part.type === 'tool-input-start') {
+        // The model just began writing an edit — surface it immediately so the
+        // UI shows live progress while the args (which can be long) stream in.
+        draftIndex += 1
+        await writer.write(
+          `${JSON.stringify({ type: 'drafting', index: draftIndex } satisfies ProgressEvent)}\n`,
+        )
+      } else if (part.type === 'tool-result') {
+        const { toolName } = part as { toolName: string }
+        const output = (
+          part as {
+            output?:
+              | {
+                  ok: true
+                  find?: string
+                  replace?: string
+                  afterHeading?: string
+                  content?: string
+                  rationale: string
+                }
+              | { ok: false; reason: string }
+          }
+        ).output
+        if (!output?.ok) continue
+
+        let item: Proposal | null = null
+        if (toolName === 'proposeReplacement' && output.find != null && output.replace != null) {
+          item = {
+            kind: 'replacement',
+            find: output.find,
+            replace: output.replace,
+            rationale: output.rationale,
+          }
+          toolCalls.push({
+            name: 'proposeReplacement',
+            input: { find: output.find, replace: output.replace },
+            rationale: output.rationale,
+          })
+        } else if (
+          toolName === 'proposeInsertion' &&
+          output.afterHeading != null &&
+          output.content != null
+        ) {
+          item = {
+            kind: 'insertion',
+            afterHeading: output.afterHeading,
+            content: output.content,
+            rationale: output.rationale,
+          }
+          toolCalls.push({
+            name: 'proposeInsertion',
+            input: { afterHeading: output.afterHeading, content: output.content },
+            rationale: output.rationale,
+          })
+        }
+
+        if (item) {
+          proposals.push(item)
+          await writer.write(`${JSON.stringify({ type: 'proposal', item } satisfies ProgressEvent)}\n`)
+        }
+      } else if (part.type === 'text-delta') {
+        const delta = (part as { delta?: string }).delta ?? ''
+        if (delta) {
+          summaryBuffer += delta
+          await writer.write(
+            `${JSON.stringify({ type: 'summary-delta', delta } satisfies ProgressEvent)}\n`,
+          )
+        }
       }
     }
+  } finally {
+    writer.releaseLock()
   }
 
   if (proposals.length === 0) {
@@ -280,8 +334,7 @@ The user's instructions are: ${instruction}`,
     throw new FatalError(message)
   }
 
-  const summary = result.text.trim() || 'AI-proposed edits.'
-  await emitProgress({ type: 'proposals', summary, items: proposals })
+  const summary = summaryBuffer.trim() || 'AI-proposed edits.'
 
   return {
     proposedContent,
