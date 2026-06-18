@@ -47,3 +47,5 @@ yarn-error.log*
 .vscode/
 .idea/
 *.swp
+.vercel
+.env*.local
